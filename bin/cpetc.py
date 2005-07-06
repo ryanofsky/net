@@ -56,7 +56,9 @@ def cpetc(selection, src, dest, overwrite, move, pretend):
       if pretend:
         continue
         
-      os.makedirs(dest_dir)
+      if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+
       if move:
         os.rename(src_file, dest_file)
       else:
