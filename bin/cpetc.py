@@ -6,9 +6,9 @@ import re
 import shutil
 import getopt
 
-_re_origfile = re.compile(r'^\._cfg\d{4}_(.+)$')
+_re_update_file = re.compile(r'^\._cfg\d{4}_(.+)$')
 
-def cpetc(src, dest, overwrite, move, pretend):
+def cpetc(selection, src, dest, overwrite, move, pretend):
   copied_files = {}
   for src_dir, dirnames, filenames in os.walk(src):
     # haven't really experimented with os.walk function so I'll just
@@ -17,44 +17,63 @@ def cpetc(src, dest, overwrite, move, pretend):
     assert src_dir[:len(src)] == src
     assert len(src_dir) == len(src) or src_dir[len(src)] == os.sep
 
-    dest_dir = None
+    dest_dir = os.path.join(dest, src_dir[len(src)+1:])
+
     for filename in filenames:
-      m = _re_origfile.match(filename)
-      if m:
-        if dest_dir is None:
-          dest_dir = os.path.join(dest, src_dir[len(src)+1:])
-          if not pretend:
-            os.makedirs(dest_dir)
-        
-        src_file = os.path.join(src_dir, filename)
+      src_file = os.path.join(src_dir, filename)
+
+      if selection == UPDATES:
+        m = _re_update_file.match(filename)
+        if not m:
+          continue
+
         dest_file = os.path.join(dest_dir, m.group(1))
 
         if copied_files.has_key(dest_file):
           print "[ignoring duplicate original %s]" % src_file
           continue
-
-        exists = os.path.exists(dest_file)
-        print (move and "mv" or "cp"), src_file, dest_file,
-        if exists:
-          if overwrite:
-            print "[overwriting]"
-          else:
-            print "[skipping]"
-            continue
         else:
-          print
+          copied_files[dest_file] = None
 
-        if pretend:
+      else:
+        dest_file = os.path.join(dest_dir, filename)
+
+      exists = os.path.exists(dest_file)
+
+      if selection == EXISTING and not exists:
+        continue
+        
+      print (move and "mv" or "cp"), src_file, dest_file,
+      if exists:
+        if overwrite:
+          print "[overwriting]"
+        else:
+          print "[skipping]"
           continue
-        elif move:
-          os.rename(src_file, dest_file)
-        else:
-          shutil.copy2(src_file, dest_file)
+      else:
+        print
+
+      if pretend:
+        continue
+        
+      os.makedirs(dest_dir)
+      if move:
+        os.rename(src_file, dest_file)
+      else:
+        shutil.copy2(src_file, dest_file)
 
 def usage():
   sys.stderr.write("""\
-Usage: cpetc.py [OPTION] SOURCE DEST
-Copy configuration files installed by gentoo packages from SOURCE to DEST
+Usage: cpetc.py [OPTION] SELECTION SOURCE DEST
+Copy selected configuration files from SOURCE to DEST directories.
+
+SELECTION is one of:
+ ALL               copy all files under the source directory
+ EXISTING          copy only files under the source directory that already 
+                   exist under the destination directory (use with --force
+                   option for effect)
+ UPDATES           copy and rename only updated configuration files installed
+                   by gentoo packages (._cfg* files)
 
 Options:
   -f, --force      Overwrite existing files instead of skipping them
@@ -62,19 +81,18 @@ Options:
   -p, --pretend    Don't actually copy files, but produce normal output
                    showing what would be copied
 """)
+
 _opts = 'frp'
-_longopts = (
-  'force',
-  'remove',
-  'pretend'
-)
+_longopts = ('force', 'remove', 'pretend')
+_selections = ('ALL', 'EXISTING', 'UPDATES')
+
+for s in _selections: globals()[s] = s
 
 if __name__ == '__main__':
   try:
     optvals, args = getopt.getopt(sys.argv[1:], _opts, _longopts)
   except getopt.GetoptError, e:
     print >> sys.stderr, e
-    usage()
     sys.exit(1)
 
   overwrite = move = pretend = 0
@@ -86,18 +104,24 @@ if __name__ == '__main__':
     elif option in ('-p', '--pretend'):
       pretend = 1
 
-  if len(args) == 2:
-    source, dest = args
+  if len(args) == 3:
+    selection, source, dest = args
   else:
     usage()
     sys.exit(1)
 
+  error = False
+  if not selection in _selections:
+    print 'Error: Invalid SELECTION argument', selection
+    error = True
   if not os.path.isdir(source):
     print 'Error: SOURCE argument %s is not a directory' % source
-    sys.exit(1)
-
+    error = True
   if not os.path.isdir(dest):
     print 'Error: DEST argument %s is not a directory' % dest
+    error = True
+
+  if error:
     sys.exit(1)
- 
-  cpetc(source, dest, overwrite, move, pretend)
+
+  cpetc(selection, source, dest, overwrite, move, pretend)
