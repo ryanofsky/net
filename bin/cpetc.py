@@ -8,7 +8,7 @@ import getopt
 
 _re_update_file = re.compile(r'^\._cfg\d{4}_(.+)$')
 
-def cpetc(selection, src, dest, overwrite, move, pretend):
+def cpetc(selection, src, dest, overwrite, move, svnskip, pretend):
   copied_files = {}
   for src_dir, dirnames, filenames in os.walk(src):
     # haven't really experimented with os.walk function so I'll just
@@ -18,6 +18,12 @@ def cpetc(selection, src, dest, overwrite, move, pretend):
     assert len(src_dir) == len(src) or src_dir[len(src)] == os.sep
 
     dest_dir = os.path.join(dest, src_dir[len(src)+1:])
+
+    if svnskip:
+      try:
+        dirnames.remove('.svn')
+      except ValueError:
+        pass
 
     for filename in filenames:
       src_file = os.path.join(src_dir, filename)
@@ -80,12 +86,13 @@ SELECTION is one of:
 Options:
   -f, --force      Overwrite existing files instead of skipping them
   -r, --remove     Remove files from SOURCE after copying
+  -s, --svn-skip   Skip .svn subdirectories
   -p, --pretend    Don't actually copy files, but produce normal output
                    showing what would be copied
 """)
 
-_opts = 'frp'
-_longopts = ('force', 'remove', 'pretend')
+_opts = 'frsp'
+_longopts = ('force', 'remove', 'pretend', 'svn-skip')
 _selections = ('ALL', 'EXISTING', 'UPDATES')
 
 for s in _selections: globals()[s] = s
@@ -97,12 +104,14 @@ if __name__ == '__main__':
     print >> sys.stderr, e
     sys.exit(1)
 
-  overwrite = move = pretend = 0
+  overwrite = move = svnskip = pretend = 0
   for option, value in optvals:
     if option in ('-f', '--force'):
       overwrite = 1
     elif option in ('-r', '--remove'):
       move = 1
+    elif option in ('-s', '--svn-skip'):
+      svnskip = 1
     elif option in ('-p', '--pretend'):
       pretend = 1
 
@@ -126,4 +135,4 @@ if __name__ == '__main__':
   if error:
     sys.exit(1)
 
-  cpetc(selection, source, dest, overwrite, move, pretend)
+  cpetc(selection, source, dest, overwrite, move, svnskip, pretend)
