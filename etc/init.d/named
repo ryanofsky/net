@@ -33,7 +33,7 @@ checkconfig() {
 start() {
 	ebegin "Starting ${CHROOT:+chrooted }named"
 	checkconfig || return 1
-	start-stop-daemon --start --quiet --exec /usr/sbin/named -- -u named -n $CPU $OPTIONS ${CHROOT:+-t $CHROOT}
+	start-stop-daemon --start --quiet --exec /usr/sbin/named --name named -- -u named -n $CPU $OPTIONS ${CHROOT:+-t $CHROOT}
 	eend $?
 }
 
@@ -41,7 +41,7 @@ stop() {
 	ebegin "Stopping ${CHROOT:+chrooted }named"
 	checkconfig || return 2
 	start-stop-daemon --stop --quiet --pidfile $PIDFILE \
-		--exec /usr/sbin/named -- stop
+		--exec /usr/sbin/named --name named -- stop
 	eend $?
 }
 
