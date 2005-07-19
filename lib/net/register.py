@@ -10,6 +10,6 @@ def handler(req):
   else:
     url = 'http://%s%s' % (host, req.unparsed_uri)
   
-  util.redirect(req, 'http://turtle/register.py'
+  util.redirect(req, 'http://kalam/register.py'
                 + (url and '?url=' + urllib.quote(url, ':/')))
   return apache.OK
