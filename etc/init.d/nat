@@ -1,0 +1,88 @@
+#!/sbin/runscript
+
+depend() {
+  need mysql
+}
+
+stop() {
+  ebegin "Disabling NAT"
+  # disable masquerading
+  echo 0 > /proc/sys/net/ipv4/ip_forward
+  iptables -t nat -F POSTROUTING
+
+  # remove filters
+  iptables -t filter -F FORWARD
+  iptables -t filter -F ACCEPT_REGISTERED_SRC
+  iptables -t filter -X ACCEPT_REGISTERED_SRC
+  iptables -t filter -F ACCEPT_REGISTERED_DEST
+  iptables -t filter -X ACCEPT_REGISTERED_DEST
+
+  # remove redirects
+  iptables -t nat -F PREROUTING
+  iptables -t nat -F ACCEPT_REGISTERED
+  iptables -t nat -X ACCEPT_REGISTERED
+  iptables -t nat -F REDIRECT_BLOCKED
+  iptables -t nat -X REDIRECT_BLOCKED
+  iptables -t nat -F BLOCK
+  iptables -t nat -X BLOCK
+  iptables -t nat -F REGISTER
+  iptables -t nat -X REGISTER
+  iptables -t nat -F ACCEPT_LOCAL
+  iptables -t nat -X ACCEPT_LOCAL
+  eend $?
+
+  iptables -t filter -L -n
+  iptables -t nat -L -n
+}
+
+start() {
+  ebegin "Enabling NAT"
+  # enable masquerading
+  echo 1 > /proc/sys/net/ipv4/ip_forward
+  iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
+
+  # don't forward packets for strangers
+  iptables -t filter -N ACCEPT_REGISTERED_SRC
+  iptables -t filter -A ACCEPT_REGISTERED_SRC -s 10.0.0.10 -m mac --mac-source 00:03:47:92:CC:95 -j ACCEPT
+
+  iptables -t filter -N ACCEPT_REGISTERED_DEST
+  iptables -t filter -A ACCEPT_REGISTERED_DEST -d 10.0.0.10 -j ACCEPT
+
+  iptables -t filter -A FORWARD -i eth0 -o eth1 -j ACCEPT_REGISTERED_SRC
+  iptables -t filter -A FORWARD -i eth0 -o eth1 -j DROP
+  iptables -t filter -A FORWARD -i eth1 -o eth0 -j ACCEPT_REGISTERED_DEST
+  iptables -t filter -A FORWARD -i eth1 -o eth0 -j DROP
+
+  # registration and block page redirects
+  iptables -t nat -N ACCEPT_LOCAL
+  iptables -t nat -A ACCEPT_LOCAL -d 10.0.0.0/8 -j ACCEPT
+  iptables -t nat -A ACCEPT_LOCAL -d 127.0.0.0/8 -j ACCEPT
+
+  iptables -t nat -N BLOCK
+  iptables -t nat -A BLOCK -p udp --destination-port 53 -j REDIRECT --to-ports 5300
+  iptables -t nat -A BLOCK -j ACCEPT_LOCAL
+  iptables -t nat -A BLOCK -p tcp --destination-port 80 -j REDIRECT --to-ports 8002
+  iptables -t nat -A BLOCK -j DROP
+
+  iptables -t nat -N REGISTER
+  iptables -t nat -A REGISTER -i eth0 -p udp --destination-port 53 -j REDIRECT --to-ports 5300
+  iptables -t nat -A REGISTER -j ACCEPT_LOCAL
+  iptables -t nat -A REGISTER -i eth0 -p tcp --destination-port 80 -j REDIRECT --to-ports 8001
+  iptables -t nat -A BLOCK -j DROP
+
+  iptables -t nat -N REDIRECT_BLOCKED
+  #iptables -t nat -A REDIRECT_BLOCKED -m mac --mac-source 00:03:47:92:CC:99 -j BLOCK
+
+  iptables -t nat -N ACCEPT_REGISTERED
+  #iptables -t nat -A ACCEPT_REGISTERED -m mac -s 10.0.0.10 --mac-source 00:00:00:00:00:00 -j ACCEPT
+
+  iptables -t nat -A PREROUTING -i eth0 -j REDIRECT_BLOCKED
+  iptables -t nat -A PREROUTING -i eth0 -j ACCEPT_REGISTERED
+  iptables -t nat -A PREROUTING -i eth0 -j REGISTER
+  eend $?
+
+  iptables -t filter -L -n
+  iptables -t nat -L -n
+}
+
+
