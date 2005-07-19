@@ -1,0 +1,10 @@
+$TTL 60
+@       IN      SOA     kalam.localnet. kalam.localnet.  (
+                                      1   ; Serial
+                                      60  ; Refresh
+                                      30  ; Retry
+                                      300 ; Expire - 1 week
+                                      120 ) ; Minimum
+		IN      NS      kalam
+kalam	IN	A	10.0.0.1
+nosmb	IN	A	10.0.0.2
