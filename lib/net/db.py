@@ -18,42 +18,26 @@ def connect():
     db.query = query
   return db
 
-def lookup_host(db, mac):
+def lookup_host(cursor, mac):
   """Returns (ip, name, email) tuple or None"""
-  cursor = db.cursor()
-  try:
-    if cursor.execute("SELECT ip_addr, name, email "
-                      "FROM hosts WHERE mac_addr = %s", mac):
-      return cursor.fetchone()
-  finally:
-    cursor.close()
+  if cursor.execute("SELECT ip_addr, name, email, status "
+                    "FROM hosts WHERE mac_addr = %s", mac):
+    return cursor.fetchone()
   return None
 
-def update_host(db, mac, ip, name, email):
-  cursor = db.cursor()
-  try:
-    cursor.execute("UPDATE hosts SET ip_addr=%s, name=%s, email=%s "
-                   "WHERE mac_addr = %s", (ip, name, email, mac))
-  finally:
-    cursor.close()
+def update_host(cursor, mac, ip, name, email):
+  cursor.execute("UPDATE hosts SET ip_addr=%s, name=%s, email=%s "
+                 "WHERE mac_addr = %s", (ip, name, email, mac))
 
-def insert_host(db, mac, ip, name, email):
-  cursor = db.cursor()
-  try:
-    cursor.execute("INSERT INTO hosts (mac_addr, ip_addr, name, email, status) "
-                   "VALUES (%s, %s, %s, %s, 'registered')",
-                   (mac, ip, name, email))
-  finally:
-    cursor.close()
+def insert_host(cursor, mac, ip, name, email):
+  cursor.execute("INSERT INTO hosts (mac_addr, ip_addr, name, email, status) "
+                 "VALUES (%s, %s, %s, %s, 'registered')",
+                 (mac, ip, name, email))
 
-def log(db, message):
-  cursor = db.cursor()
-  try:
-    cursor.execute("INSERT INTO log (time, message) "
-                   "VALUES (%s, %s)",
-                   (time_str(), message))
-  finally:
-    cursor.close()
+def log(cursor, message):
+  cursor.execute("INSERT INTO log (time, message) "
+                 "VALUES (%s, %s)",
+                 (time_str(), message))
 
 def time_str(ticks=None):
   """Return a MySQL DATETIME value from a unix timestamp"""
@@ -81,3 +65,20 @@ def parse_time(datetime):
     t = datetime.tuple()
 
     return calendar.timegm(t)
+
+REGISTERED = 'registered'
+BLOCKED = 'blocked'
+
+def get_hosts(cursor, status=None):
+  sql = "SELECT name, ip_addr, mac_addr FROM hosts"
+  args = []
+  if status:
+    sql += " WHERE status = %s"
+    args.append(status)
+
+  cursor.execute(sql, args)
+  while True:
+    row = cursor.fetchone()
+    if not row:
+      break
+    yield row
