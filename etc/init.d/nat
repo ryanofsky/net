@@ -14,8 +14,8 @@ stop() {
   iptables -t filter -F FORWARD
   iptables -t filter -F ACCEPT_REGISTERED_SRC
   iptables -t filter -X ACCEPT_REGISTERED_SRC
-  iptables -t filter -F ACCEPT_REGISTERED_DEST
-  iptables -t filter -X ACCEPT_REGISTERED_DEST
+  iptables -t filter -F ACCEPT_REGISTERED_DST
+  iptables -t filter -X ACCEPT_REGISTERED_DST
 
   # remove redirects
   iptables -t nat -F PREROUTING
@@ -43,14 +43,14 @@ start() {
 
   # don't forward packets for strangers
   iptables -t filter -N ACCEPT_REGISTERED_SRC
-  iptables -t filter -A ACCEPT_REGISTERED_SRC -s 10.0.0.10 -m mac --mac-source 00:03:47:92:CC:95 -j ACCEPT
+  #iptables -t filter -A ACCEPT_REGISTERED_SRC -s 10.0.0.10 -m mac --mac-source 00:03:47:92:CC:95 -j ACCEPT
 
-  iptables -t filter -N ACCEPT_REGISTERED_DEST
-  iptables -t filter -A ACCEPT_REGISTERED_DEST -d 10.0.0.10 -j ACCEPT
+  iptables -t filter -N ACCEPT_REGISTERED_DST
+  #iptables -t filter -A ACCEPT_REGISTERED_DST -d 10.0.0.10 -j ACCEPT
 
   iptables -t filter -A FORWARD -i eth0 -o eth1 -j ACCEPT_REGISTERED_SRC
   iptables -t filter -A FORWARD -i eth0 -o eth1 -j DROP
-  iptables -t filter -A FORWARD -i eth1 -o eth0 -j ACCEPT_REGISTERED_DEST
+  iptables -t filter -A FORWARD -i eth1 -o eth0 -j ACCEPT_REGISTERED_DST
   iptables -t filter -A FORWARD -i eth1 -o eth0 -j DROP
 
   # registration and block page redirects
@@ -79,6 +79,8 @@ start() {
   iptables -t nat -A PREROUTING -i eth0 -j REDIRECT_BLOCKED
   iptables -t nat -A PREROUTING -i eth0 -j ACCEPT_REGISTERED
   iptables -t nat -A PREROUTING -i eth0 -j REGISTER
+
+  /root/net/bin/addhosts.py
   eend $?
 
   iptables -t filter -L -n
