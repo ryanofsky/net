@@ -1,0 +1,2 @@
+env = Environment(CCFLAGS='-Wall')
+env.Program('iptables-wrapper.c')
