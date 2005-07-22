@@ -51,7 +51,9 @@ internet access.</p>
 """
 from net.ezt import Template
 from net.addr import parse_ip, ip2mac, ip_str, mac_str
-from net.db import connect, lookup_host, update_host, insert_host, log
+from net.db import connect, lookup_host, update_host, insert_host, log, \
+                   REGISTERED, BLOCKED
+from net.iptables import add_registered, del_registered
 import cStringIO
 import cgi
 
@@ -68,30 +70,41 @@ def index(req, url=None, name=None, email=None):
 
   db = connect()
   try:
-    registered = lookup_host(db, mac)
-    if registered:
-      reg_ip, reg_name, reg_email = registered
-      update = name or (ip != reg_ip and name is None)
-      if name is None: name = reg_name
-      if email is None: email = reg_email
-      if update:
-        update_host(db, mac, ip, name, email)
-	msg = "Updated registration: mac = %s" % mac_str(mac)
-	msg += ", name = `%s', old name = `%s'" % (name, reg_name)
-	msg += ", email = `%s', old email = `%s'" % (email, reg_email)
-	msg += ", ip = %s, old ip = %s" % (ip_str(ip), ip_str(reg_ip))
-	log(db, msg)
-	if ip == reg_ip:
-          done = 'REGISTRATION UPDATED'
-	else:
-	  done = 'REGISTRATION UPDATED (host ip changed)'
-    elif name:
-      insert_host(db, mac, ip, name, email)
-      log(db, "Added registration: mac = %s, ip = %s, "
-              "name = `%s', email = `%s'"
-               % (mac_str(mac), ip_str(ip), name, email))
+    cursor = db.cursor()
+    try:
+      registered = lookup_host(cursor, mac)
+      if registered:
+        reg_ip, reg_name, reg_email, reg_status = registered
+        update = name or (ip != reg_ip and name is None)
+        if name is None: name = reg_name
+        if email is None: email = reg_email
+        if update:
+          update_host(cursor, mac, ip, name, email)
+          msg = "Updated registration: mac = %s" % mac_str(mac)
+          msg += ", name = `%s', old name = `%s'" % (name, reg_name)
+          msg += ", email = `%s', old email = `%s'" % (email, reg_email)
+          msg += ", ip = %s, old ip = %s" % (ip_str(ip), ip_str(reg_ip))
+          log(cursor, msg)
+          if ip != reg_ip:
+	    if reg_status == REGISTERED:
+	      del_registered(reg_ip, reg_mac)
+	      add_registered(ip, mac)
+	    elif reg_status == BLOCKED:
+	      del_blocked(mac)
+	      add_blocked(mac)
+            done = 'REGISTRATION UPDATED (host ip changed)'
+	  else:
+            done = 'REGISTRATION UPDATED'
+      elif name:
+        insert_host(cursor, mac, ip, name, email)
+        log(cursor, "Added registration: mac = %s, ip = %s, "
+                    "name = `%s', email = `%s'"
+                    % (mac_str(mac), ip_str(ip), name, email))
+	add_registered(ip, mac)
     
-      done = 'REGISTRATION COMPLETE'
+        done = 'REGISTRATION COMPLETE'
+    finally:
+      cursor.close()
   finally:
     db.close()
 
