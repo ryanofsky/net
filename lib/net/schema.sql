@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS log
 CREATE TABLE IF NOT EXISTS byte_counts
 (
   byte_count_id INT NOT NULL AUTO_INCREMENT,
+  host_id INT NOT NULL REFERENCES hosts(host_id),
   start_time DATETIME NOT NULL,
   end_time DATETIME,
   incoming INT UNSIGNED,

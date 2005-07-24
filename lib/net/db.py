@@ -82,3 +82,17 @@ def get_hosts(cursor, status=None):
     if not row:
       break
     yield row
+
+def add_count(cursor, host_id, incoming, outgoing):
+  time = time_str()
+  cursor.execute("UPDATE byte_counts "
+                 "SET incoming = %s, outgoing = %s, end_time = %s "
+		 "WHERE host_id = %s AND end_time IS NULL",
+		 (incoming, outgoing, time, host_id))
+  if cursor.rowcount == 0:
+    cursor.execute("INSERT INTO byte_counts "
+                   "(host_id, start_time, end_time, incoming, outgoing) "
+		   "VALUES (%s, %s, %s, %s, %s)",
+		   (host_id, time, time, incoming, outgoing))
+  cursor.execute("INSERT INTO byte_counts (host_id, start_time) "
+                 "VALUES (%s, %s)", (host_id, time))
