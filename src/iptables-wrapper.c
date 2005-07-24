@@ -6,9 +6,13 @@ const char * IPTABLES_PATH = "/sbin/iptables";
 
 void usage()
 {
-  fprintf(stderr, "Usage: iptables-wrapper \"append\"|\"delete\" "
-      "table chain action\n       \"src\"|\"dst\" "
-      "ip_addr|\"none\" mac_addr|\"none\"\n");
+  fprintf(stderr, 
+          "Usage: iptables-wrapper \"append\"|\"delete\" table chain action\n"
+          "                        \"src\"|\"dst\" ip_addr|\"none\" mac_addr|"
+	  "\"none\"\n\n"
+          "       iptables-wrapper \"show\"|\"zero\" table\n\n" 
+      
+      );
   fprintf(stderr, "A wrapper around iptables that accepts a restricted "
                   "set of arguments\nand can be set suid root.\n");
 }
@@ -106,9 +110,9 @@ int valid_mac(char * mac)
 
 int main(int argc, char **argv)
 {
-  enum { APPEND, DELETE, INVALID } mode = INVALID;
+  enum { APPEND, DELETE, SHOW, INVALID } mode = INVALID;
   char *mac, *ip, *table, *chain, *action;
-  int source;
+  int source, zero;
  
   if (argc == 8)
   {
@@ -175,42 +179,68 @@ int main(int argc, char **argv)
       return 1;
     }
   }
+  else if (argc == 3 && ((zero = (strcmp(argv[1], "zero") == 0)) 
+                         || (strcmp(argv[1], "show") == 0)))
+  {
+    mode = SHOW;
+    if (strcmp(argv[2], "filter") == 0)
+      table = argv[2];
+    else
+    {
+      fprintf(stderr, "Error: can't show table `%s'\n", argv[2]);
+      return 1;
+    }
+  }
   else
   {
     usage();
     return 1;
   }
 
-  char const * eargv[13] = { IPTABLES_PATH, "-t", table, 
-                             NULL, chain, NULL, ip };
+  char const * eargv[13] = { IPTABLES_PATH, "-t", table };
+  int n = 3;
   if (mode == APPEND)
     eargv[3] = "-A";
   else if (mode == DELETE)
     eargv[3] = "-D";
+  else if (mode == SHOW)
+    eargv[3] = "-L";
 
-  int eargc = 5;
-
-  if (ip)
+  if (mode == APPEND || mode == DELETE)
   {
-    eargv[eargc++] = source ? "-s" : "-d";
-    eargv[eargc++] = ip;
-  }
+    eargv[++n] = chain;
 
-  if (mac)
+    if (ip)
+    {
+      eargv[++n] = source ? "-s" : "-d";
+      eargv[++n] = ip;
+    }
+
+    if (mac)
+    {
+      eargv[++n] = "-m";
+      eargv[++n] = "mac";
+      eargv[++n] = "--mac-source";
+      eargv[++n] = mac;
+    }
+
+    eargv[++n] = "-j";
+    eargv[++n] = action;  
+    eargv[++n] = NULL;  
+  }
+  else if (mode == SHOW)
   {
-    eargv[eargc++] = "-m";
-    eargv[eargc++] = "mac";
-    eargv[eargc++] = "--mac-source";
-    eargv[eargc++] = mac;
+    if (zero)
+      eargv[++n] = "-Z";
+    eargv[++n] = "-v";
+    eargv[++n] = "-n";
+    eargv[++n] = "-x";
+    eargv[++n] = NULL;
   }
-
-  eargv[eargc++] = "-j";
-  eargv[eargc++] = action;  
-  eargv[eargc++] = NULL;  
-
+  
 #if DEBUG
   int i;
-  for (i = 0; i < eargc - 1; ++i)
+  for (i = 0; i < n; ++i)
   {
     fprintf(stderr, "%s ", eargv[i]);
   }
