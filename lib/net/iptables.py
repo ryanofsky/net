@@ -52,6 +52,8 @@ _re_entry = re.compile(r'^\s*'
                        r'(?P<destination>\S+)\s*'
 		       r'(?P<extra>.*\S)?\s*$')
 
+_re_zero = re.compile(r"^Zeroing chain `(.*)'$")
+
 class ParseError(Exception):
   def __init__(self, error, line_no, line):
     Exception.__init__(self)
@@ -72,6 +74,8 @@ def read_counts(fp):
     line = fp.readline()
     if not line:
       return
+    if _re_zero.match(line):
+      continue
     m = _re_chain.match(line)
     if not m:
       raise ParseError("could not parse chain header", line_no, line)
@@ -89,6 +93,8 @@ def read_counts(fp):
       if not line:
         return
       if line == '\n':
+        break
+      if _re_zero.match(line):
         break
       m = _re_entry.match(line)
       if not m:
