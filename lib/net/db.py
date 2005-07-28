@@ -85,14 +85,45 @@ def get_hosts(cursor, status=None):
 
 def add_count(cursor, host_id, incoming, outgoing):
   time = time_str()
+  
+  if incoming == 0 and outgoing == 0:
+    # optimized case, there's no reason to add subsequent rows with zero
+    # counts, just update the end times
+
+    cursor.execute("SELECT start_time "
+                   "FROM byte_counts "
+                   "WHERE host_id = %s AND end_time IS NULL", host_id)
+
+    if cursor.rowcount:
+      assert cursor.rowcount == 1
+      old_time, = cursor.fetchone()
+      
+      cursor.execute("UPDATE byte_counts SET end_time = %s "
+                     "WHERE host_id = %s AND end_time = %s "
+                     "  AND incoming = 0 AND outgoing = 0", 
+                     (time, host_id, old_time))
+
+      if cursor.rowcount:
+        assert cursor.rowcount == 1
+        cursor.execute("UPDATE byte_counts SET start_time = %s "
+                       "WHERE host_id = %s AND start_time = %s "
+                       "  AND end_time IS NULL",
+                       (time, host_id, old_time))
+        assert cursor.rowcount == 1
+        return
+
+  # normal case
   cursor.execute("UPDATE byte_counts "
                  "SET incoming = %s, outgoing = %s, end_time = %s "
-		 "WHERE host_id = %s AND end_time IS NULL",
-		 (incoming, outgoing, time, host_id))
+                 "WHERE host_id = %s AND end_time IS NULL",
+                 (incoming, outgoing, time, host_id))
+
   if cursor.rowcount == 0:
     cursor.execute("INSERT INTO byte_counts "
                    "(host_id, start_time, end_time, incoming, outgoing) "
-		   "VALUES (%s, %s, %s, %s, %s)",
-		   (host_id, time, time, incoming, outgoing))
+                   "VALUES (%s, %s, %s, %s, %s)",
+                   (host_id, time, time, incoming, outgoing))
+
   cursor.execute("INSERT INTO byte_counts (host_id, start_time) "
                  "VALUES (%s, %s)", (host_id, time))
+
