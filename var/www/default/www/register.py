@@ -49,17 +49,15 @@ internet access.</p>
 </body>
 </html>
 """
-from net.ezt import Template
-from net.addr import parse_ip, ip2mac, ip_str, mac_str
-from net.db import connect, lookup_host, update_host, insert_host, log, \
-                   REGISTERED, BLOCKED
-from net.iptables import add_registered, del_registered
-import cStringIO
+
 import cgi
+import cStringIO
+
+from net import ezt, addr, db, iptables
 
 def index(req, url=None, name=None, email=None):
-  ip = parse_ip(req.connection.remote_ip)
-  mac = ip2mac(ip)
+  ip = addr.parse_ip(req.connection.remote_ip)
+  mac = addr.ip2mac(ip)
   if mac is None: 
     raise "Could not determine MAC address for %s" % ip
 
@@ -68,45 +66,45 @@ def index(req, url=None, name=None, email=None):
   if name == '':
     errors.append('You need to type your name.')
 
-  db = connect()
+  conn = db.connect()
   try:
-    cursor = db.cursor()
+    cursor =  conn.cursor()
     try:
-      registered = lookup_host(cursor, mac)
+      registered = db.lookup_host(cursor, mac)
       if registered:
         reg_ip, reg_name, reg_email, reg_status = registered
         update = name or (ip != reg_ip and name is None)
         if name is None: name = reg_name
         if email is None: email = reg_email
         if update:
-          update_host(cursor, mac, ip, name, email)
-          msg = "Updated registration: mac = %s" % mac_str(mac)
+          db.update_host(cursor, mac, ip, name, email)
+          msg = "Updated registration: mac = %s" % addr.mac_str(mac)
           msg += ", name = `%s', old name = `%s'" % (name, reg_name)
           msg += ", email = `%s', old email = `%s'" % (email, reg_email)
-          msg += ", ip = %s, old ip = %s" % (ip_str(ip), ip_str(reg_ip))
-          log(cursor, msg)
+          msg += ", ip = %s, old ip = %s" % (addr.ip_str(ip), addr.ip_str(reg_ip))
+          db.log(cursor, msg)
           if ip != reg_ip:
-	    if reg_status == REGISTERED:
-	      del_registered(reg_ip, reg_mac)
-	      add_registered(ip, mac)
-	    elif reg_status == BLOCKED:
-	      del_blocked(mac)
-	      add_blocked(mac)
+            if reg_status == db.REGISTERED:
+              iptables.del_registered(reg_ip, reg_mac)
+              iptables.add_registered(ip, mac)
+            elif reg_status == db.BLOCKED:
+              iptables.del_blocked(mac)
+              iptables.add_blocked(mac)
             done = 'REGISTRATION UPDATED (host ip changed)'
-	  else:
+          else:
             done = 'REGISTRATION UPDATED'
       elif name:
-        insert_host(cursor, mac, ip, name, email)
-        log(cursor, "Added registration: mac = %s, ip = %s, "
+        db.insert_host(cursor, mac, ip, name, email)
+        db.log(cursor, "Added registration: mac = %s, ip = %s, "
                     "name = `%s', email = `%s'"
-                    % (mac_str(mac), ip_str(ip), name, email))
-	add_registered(ip, mac)
+                    % (addr.mac_str(mac), addr.ip_str(ip), name, email))
+        iptables.add_registered(ip, mac)
     
         done = 'REGISTRATION COMPLETE'
     finally:
       cursor.close()
   finally:
-    db.close()
+    conn.close()
 
   vars = {
     'done': done,
@@ -118,7 +116,7 @@ def index(req, url=None, name=None, email=None):
     'url': None and url and cgi.escape(url, 1),
   }
   out = cStringIO.StringIO()
-  template = Template()
+  template = ezt.Template()
   template.parse(page)
   template.generate(out, vars)
   return out.getvalue()
