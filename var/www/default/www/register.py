@@ -16,13 +16,13 @@ page = """<html>
   [if-any registered]
 <h3>Update your registration</h3>
 <p>Your computer has already been registered on this network. You can use the
-form below to update your registration information.</p>
+form below to update your registration information or unregister.</p>
   [else]
 <h3>Register your computer</h3>
 <p>To access the internet, you need to register your computer on this network.
 Just enter your name in the form below, hit "Register," and your computer will
 be permanently registered. Registration helps the network adminstrators
-monitor individual bandwidth usage and block unauthorized users, for faster 
+monitor individual bandwidth usage and block unauthorized users, for faster
 internet access.</p>
   [end]
 
@@ -39,7 +39,10 @@ internet access.</p>
   </tr>
   <tr>
     <td>&nbsp;</td>
-    <td><input type=submit name=submit value=[if-any registered]Update[else]Register[end]></td>
+    <td>
+      <input type=submit name=submit value=[if-any registered]Update[else]Register[end]>
+      [if-any registered]<input type=submit name=unregister value=Unregister>[end]
+    </td>
   </tr>
 </table>
 </form>
@@ -53,54 +56,60 @@ internet access.</p>
 import cgi
 import cStringIO
 
-from net import ezt, addr, db, iptables
+from net import ezt, addr, db, hosts
 
-def index(req, url=None, name=None, email=None):
+def index(req, url=None, name=None, email=None, unregister=None):
   ip = addr.parse_ip(req.connection.remote_ip)
   mac = addr.ip2mac(ip)
-  if mac is None: 
+  if mac is None:
     raise "Could not determine MAC address for %s" % ip
 
   done = None
   errors = []
-  if name == '':
-    errors.append('You need to type your name.')
+  registered = None
 
   conn = db.connect()
   try:
-    cursor =  conn.cursor()
+    cursor = conn.cursor()
     try:
-      registered = db.lookup_host(cursor, mac)
-      if registered:
-        reg_ip, reg_name, reg_email, reg_status = registered
-        update = name or (ip != reg_ip and name is None)
-        if name is None: name = reg_name
-        if email is None: email = reg_email
-        if update:
-          db.update_host(cursor, mac, ip, name, email)
-          msg = "Updated registration: mac = %s" % addr.mac_str(mac)
-          msg += ", name = `%s', old name = `%s'" % (name, reg_name)
-          msg += ", email = `%s', old email = `%s'" % (email, reg_email)
-          msg += ", ip = %s, old ip = %s" % (addr.ip_str(ip), addr.ip_str(reg_ip))
-          db.log(cursor, msg)
-          if ip != reg_ip:
-            if reg_status == db.REGISTERED:
-              iptables.del_registered(reg_ip, reg_mac)
-              iptables.add_registered(ip, mac)
-            elif reg_status == db.BLOCKED:
-              iptables.del_blocked(mac)
-              iptables.add_blocked(mac)
-            done = 'REGISTRATION UPDATED (host ip changed)'
-          else:
-            done = 'REGISTRATION UPDATED'
-      elif name:
-        db.insert_host(cursor, mac, ip, name, email)
-        db.log(cursor, "Added registration: mac = %s, ip = %s, "
-                    "name = `%s', email = `%s'"
-                    % (addr.mac_str(mac), addr.ip_str(ip), name, email))
-        iptables.add_registered(ip, mac)
-    
-        done = 'REGISTRATION COMPLETE'
+      try:
+        host = hosts.lookup_mac(cursor, mac)
+        if unregister is not None:
+          if host:
+            host.update(cursor, registered=False, ip=ip)
+          done = 'REGISTRATION REMOVED'
+          url = None
+
+        elif name is not None:
+          if not name:
+            errors.append('You need to type your name')
+
+          if not errors:
+            if host:
+              done = 'REGISTRATION UPDATED'
+              host.update(cursor, name=name, email=email, registered=True, ip=ip)
+            else:
+              done = 'REGISTRATION ADDED'
+              host = hosts.Host(None, mac, ip, name, email, True, False)
+              host.insert()
+
+        elif host and host.ip != ip:
+          done = ('REGISTRATION IP ADDRESS UPDATED (WAS %s, IS %s)'
+                   % (addr.ip_str(host.ip), addr.ip_str(ip)))
+          host.update(cursor, ip=ip)
+
+        if not done:
+          if name is None and host and host.registered:
+            registered = True
+            name = host.name
+            email = host.email
+
+      except:
+        db.log_exception(cursor, 'REGISTRATION PAGE FATAL ERROR '
+                                 '(ip = %s, mac = %s, url = %s, form = %s)'
+                                 % (addr.ip_str(ip), addr.mac_str(mac),
+                                    db.log_str(req.unparsed_uri), req.form.list))
+        raise
     finally:
       cursor.close()
   finally:
@@ -110,10 +119,10 @@ def index(req, url=None, name=None, email=None):
     'done': done,
     'errors': errors,
     'registered': registered,
-    'name': name and cgi.escape(name, 1),
-    'email': email and cgi.escape(email, 1),
+    'name': name and cgi.escape(name, True),
+    'email': email and cgi.escape(email, True),
     ### enable url when internet actually works
-    'url': None and url and cgi.escape(url, 1),
+    'url': None and url and cgi.escape(url, True),
   }
   out = cStringIO.StringIO()
   template = ezt.Template()
