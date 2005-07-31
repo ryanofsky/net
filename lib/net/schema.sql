@@ -2,10 +2,11 @@ CREATE TABLE IF NOT EXISTS hosts
 (
   host_id INT NOT NULL AUTO_INCREMENT,
   mac_addr BIGINT UNSIGNED NOT NULL,
-  ip_addr INT UNSIGNED NOT NULL,
+  ip_addr INT UNSIGNED,
   name VARCHAR(255),
   email VARCHAR(255),
-  status ENUM ('registered', 'blocked'),
+  registered BOOL NOT NULL,
+  blocked BOOL NOT NULL,
   PRIMARY KEY (host_id),
   UNIQUE KEY (mac_addr),
   UNIQUE KEY (ip_addr)

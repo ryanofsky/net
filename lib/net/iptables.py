@@ -1,23 +1,24 @@
 import os
-import net.db
-import net.addr
 import re
 
-def add_registered(ip, mac):
-  run(APPEND, 'filter', 'ACCEPT_REGISTERED_SRC', 'ACCEPT', SOURCE, ip, mac)
-  run(APPEND, 'filter', 'ACCEPT_REGISTERED_DST', 'ACCEPT', DEST, ip, None)
-  run(APPEND, 'nat', 'ACCEPT_REGISTERED', 'ACCEPT', SOURCE, ip, mac)
+import db
+import addr
 
-def del_registered(ip, mac):
-  run(DELETE, 'filter', 'ACCEPT_REGISTERED_SRC', 'ACCEPT', SOURCE, ip, mac)
-  run(DELETE, 'filter', 'ACCEPT_REGISTERED_DST', 'ACCEPT', DEST, ip, None)
-  run(DELETE, 'nat', 'ACCEPT_REGISTERED', 'ACCEPT', SOURCE, ip, mac)
+def add_registered(cursor, ip, mac):
+  run(cursor, APPEND, 'filter', 'ACCEPT_REGISTERED_SRC', 'ACCEPT', SOURCE, ip, mac)
+  run(cursor, APPEND, 'filter', 'ACCEPT_REGISTERED_DST', 'ACCEPT', DEST, ip, None)
+  run(cursor, APPEND, 'nat', 'ACCEPT_REGISTERED', 'ACCEPT', SOURCE, ip, mac)
 
-def add_blocked(mac):
-  run(APPEND, 'nat', 'REDIRECT_BLOCKED', 'BLOCK', SOURCE, None, mac)
+def del_registered(cursor, ip, mac):
+  run(cursor, DELETE, 'filter', 'ACCEPT_REGISTERED_SRC', 'ACCEPT', SOURCE, ip, mac)
+  run(cursor, DELETE, 'filter', 'ACCEPT_REGISTERED_DST', 'ACCEPT', DEST, ip, None)
+  run(cursor, DELETE, 'nat', 'ACCEPT_REGISTERED', 'ACCEPT', SOURCE, ip, mac)
 
-def del_blocked(mac):
-  run(DELETE, 'nat', 'REDIRECT_BLOCKED', 'BLOCK', SOURCE, None, mac)
+def add_blocked(cursor, mac):
+  run(cursor, APPEND, 'nat', 'REDIRECT_BLOCKED', 'BLOCK', SOURCE, None, mac)
+
+def del_blocked(cursor, mac):
+  run(cursor, DELETE, 'nat', 'REDIRECT_BLOCKED', 'BLOCK', SOURCE, None, mac)
 
 APPEND = 'append'
 DELETE = 'delete'
@@ -25,17 +26,13 @@ DELETE = 'delete'
 SOURCE = 'src'
 DEST = 'dst'
 
-def run(edit, table, chain, action, srcdst, ip, mac):
-  ip_str = ip is None and 'none' or net.addr.ip_str(ip)
-  mac_str = mac is None and 'none' or net.addr.mac_str(mac)
+def run(cursor, edit, table, chain, action, srcdst, ip, mac):
+  ip_str = ip is None and 'none' or addr.ip_str(ip)
+  mac_str = mac is None and 'none' or addr.mac_str(mac)
   cmd = ('/sbin/iptables-wrapper %s %s %s %s %s %s %s'
          % (edit, table, chain, action, srcdst, ip_str, mac_str))
   if os.system(cmd):
-    db = net.db.connect()
-    try:
-      net.db.log(db, "Error running `%s'" % cmd)
-    finally:
-      db.close()
+    db.log(cursor, "iptables error: nonzero return from %s" % db.log_str(cmd))
 
 _re_chain = re.compile(r'^Chain (.*) \((.*)\)$')
 _re_header = re.compile(r'\s*pkts\s+bytes\s+target\s+prot\s+opt\s+'
@@ -50,7 +47,7 @@ _re_entry = re.compile(r'^\s*'
                        r'(?P<out>\S+)\s+'
                        r'(?P<source>\S+)\s+'
                        r'(?P<destination>\S+)\s*'
-		       r'(?P<extra>.*\S)?\s*$')
+                       r'(?P<extra>.*\S)?\s*$')
 
 _re_zero = re.compile(r"^Zeroing chain `(.*)'$")
 
@@ -103,4 +100,4 @@ def read_counts(fp):
 
 def close_counts(fp):
   fp.close()
- 
+

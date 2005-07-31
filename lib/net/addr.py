@@ -24,10 +24,10 @@ def mac_str(mac):
     raise ValueError, "Invalid mac %s" % mac
   return "%02x:%02x:%02x:%02x:%02x:%02x" % ((mac >> 40) & 255,
                                             (mac >> 32) & 255,
-			                    (mac >> 24) & 255,
-			                    (mac >> 16) & 255,
-			                    (mac >> 8)  & 255,
-			                    (mac)       & 255)
+                                            (mac >> 24) & 255,
+                                            (mac >> 16) & 255,
+                                            (mac >> 8)  & 255,
+                                            (mac)       & 255)
 
 _re_ip = re.compile(r'(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$')
 
@@ -49,8 +49,8 @@ def ip_str(ip):
     raise ValueError, "Invalid ip %s" % ip
   return "%i.%i.%i.%i" % ((ip >> 24) & 255,
                           (ip >> 16) & 255,
-			  (ip >> 8)  & 255,
-			  (ip)       & 255)
+                          (ip >> 8)  & 255,
+                          (ip)       & 255)
 
 def ip2mac(ip):
   fp = os.popen('/sbin/ip neigh show %s' % ip_str(ip))

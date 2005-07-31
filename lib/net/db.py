@@ -2,12 +2,17 @@ import MySQLdb
 import time
 import calendar
 import re
+import types
+import traceback
+import cStringIO
+import sys
+
 import config
 
 DEBUG = False
 
 def connect():
-  db = MySQLdb.connect(user=config.MYSQL_USER, 
+  db = MySQLdb.connect(user=config.MYSQL_USER,
                        passwd=config.MYSQL_PASSWORD,
                        db=config.MYSQL_DATABASE)
   if DEBUG:
@@ -18,26 +23,65 @@ def connect():
     db.query = query
   return db
 
-def lookup_host(cursor, mac):
-  """Returns (ip, name, email) tuple or None"""
-  if cursor.execute("SELECT ip_addr, name, email, status "
+def lookup_host_with_mac(cursor, mac):
+  if cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
+                      "registered, blocked "
                     "FROM hosts WHERE mac_addr = %s", mac):
+    assert cursor.rowcount == 1
     return cursor.fetchone()
   return None
 
-def update_host(cursor, mac, ip, name, email):
-  cursor.execute("UPDATE hosts SET ip_addr=%s, name=%s, email=%s "
-                 "WHERE mac_addr = %s", (ip, name, email, mac))
+def lookup_host_with_ip(cursor, ip):
+  if cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
+                      "registered, blocked "
+                    "FROM hosts WHERE ip_addr = %s", ip):
+    assert cursor.rowcount == 1
+    return cursor.fetchone()
+  return None
 
-def insert_host(cursor, mac, ip, name, email):
-  cursor.execute("INSERT INTO hosts (mac_addr, ip_addr, name, email, status) "
-                 "VALUES (%s, %s, %s, %s, 'registered')",
-                 (mac, ip, name, email))
+def insert_host(cursor, mac, ip, name, email, registered, blocked):
+  """Insert host record with specified values"""
+  cursor.execute("INSERT INTO hosts (mac_addr, ip_addr, name, email, "
+                                    "registered, blocked) "
+                 "VALUES (%s, %s, %s, %s, %s, %s)",
+                 (mac, ip, name, email, _bool(registered), _bool(blocked)))
+  return cursor.insert_id()
+
+def update_host(cursor, mac, ip, name, email, registered, blocked):
+  """Update host record with specified values"""
+  if cursor.execute("UPDATE hosts SET ip_addr = %s, name = %s, email = %s, "
+                    "registered = %s, blocked = %s WHERE mac_addr = %s",
+                    (ip, name, email, _bool(registered), _bool(blocked),
+                     mac)):
+    assert cursor.rowcount == 1
+    return True
+  return False
+
+def get_hosts(cursor):
+  cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
+                 "registered, blocked FROM hosts")
+  while True:
+    row = cursor.fetchone()
+    if row:
+      yield row
+    else:
+      break
 
 def log(cursor, message):
-  cursor.execute("INSERT INTO log (time, message) "
-                 "VALUES (%s, %s)",
+  cursor.execute("INSERT INTO log (time, message) VALUES (%s, %s)",
                  (time_str(), message))
+
+def log_exception(cursor, message):
+  fp = cStringIO.StringIO()
+  fp.write(message)
+  fp.write('\n')
+  traceback.print_exc(None, fp)
+  log(cursor, fp.getvalue())
+
+def log_str(s):
+  if type(s) in types.StringTypes:
+    return "'%s'" % s.replace("'", "\ \'")
+  return str(s)
 
 def time_str(ticks=None):
   """Return a MySQL DATETIME value from a unix timestamp"""
@@ -52,7 +96,6 @@ _re_datetime = re.compile('([0-9]{4})-([0-9][0-9])-([0-9][0-9]) '
 
 def parse_time(datetime):
   """Return a unix timestamp from a MySQL DATETIME value"""
-
   if type(datetime) == types.StringType:
     # datetime is a MySQL DATETIME string
     matches = _re_datetime.match(datetime).groups()
@@ -66,26 +109,9 @@ def parse_time(datetime):
 
     return calendar.timegm(t)
 
-REGISTERED = 'registered'
-BLOCKED = 'blocked'
-
-def get_hosts(cursor, status=None):
-  sql = "SELECT name, ip_addr, mac_addr FROM hosts"
-  args = []
-  if status:
-    sql += " WHERE status = %s"
-    args.append(status)
-
-  cursor.execute(sql, args)
-  while True:
-    row = cursor.fetchone()
-    if not row:
-      break
-    yield row
-
 def add_count(cursor, host_id, incoming, outgoing):
   time = time_str()
-  
+
   if incoming == 0 and outgoing == 0:
     # optimized case, there's no reason to add subsequent rows with zero
     # counts, just update the end times
@@ -97,10 +123,10 @@ def add_count(cursor, host_id, incoming, outgoing):
     if cursor.rowcount:
       assert cursor.rowcount == 1
       old_time, = cursor.fetchone()
-      
+
       cursor.execute("UPDATE byte_counts SET end_time = %s "
                      "WHERE host_id = %s AND end_time = %s "
-                     "  AND incoming = 0 AND outgoing = 0", 
+                     "  AND incoming = 0 AND outgoing = 0",
                      (time, host_id, old_time))
 
       if cursor.rowcount:
@@ -127,3 +153,26 @@ def add_count(cursor, host_id, incoming, outgoing):
   cursor.execute("INSERT INTO byte_counts (host_id, start_time) "
                  "VALUES (%s, %s)", (host_id, time))
 
+
+def _bool(val):
+  """Work around bug in MySQLdb escaping of bools
+
+  When substituting python booleans into %s patterns, MySQLdb makes them into
+  string literals. For example
+
+    cursor.execute("SELECT %s", (False,))   becomes  SELECT 'False'
+    cursor.execute("SELECT %s", (True,))    becomes  SELECT 'True'
+
+  This is inconvenient, and inconsistent with the way it handles other python
+  types like NoneType.
+
+    cursor.execute("SELECT %s", (False,))   becomes  SELECT NULL
+
+  This function converts booleans to a form mysql won't mangle.
+  """
+  if type(val) is types.BooleanType:
+    if val:
+      return 1
+    else:
+      return 0
+  return val
