@@ -1,26 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-from net.db import connect, get_hosts, REGISTERED, BLOCKED
-from net.iptables import add_registered, add_blocked
-from net.addr import mac_str
 
-def addhosts():
-  db = connect()
-  try:
-    cursor = db.cursor()
-    try:
-      for name, ip, mac in get_hosts(cursor, REGISTERED):
-        print "Registering %s (%s)" % (name, mac_str(mac))
-	add_registered(ip, mac)
-      for name, ip, mac in get_hosts(cursor, BLOCKED):
-        print "Blocking %s (%s)" % (name, mac_str(mac))
-	add_blocked(mac)
-    finally:
-      cursor.close()
-  finally:
-    db.close()
-  
+from net import db, hosts, addr
+
 def usage():
   sys.stderr.write("""\
 Usage: addhosts.py
@@ -32,4 +15,19 @@ if __name__ == '__main__':
     usage()
     sys.exit(1)
 
-  addhosts()
+  conn = db.connect()
+  try:
+    cursor = conn.cursor()
+    try:
+      try:
+        for host in hosts.get_hosts(cursor):
+          print "Adding host `%s' (%s)" % (host.name, addr.mac_str(host.mac))
+          host.iptables_add(cursor)
+      except:
+        db.log_exception(cursor, 'ADDHOSTS.PY FATAL ERROR')
+        raise
+    finally:
+      cursor.close()
+  finally:
+    conn.close()
+

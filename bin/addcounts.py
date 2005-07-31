@@ -3,10 +3,7 @@
 DEBUG = False
 
 import sys
-import traceback
-import cStringIO
-
-from net import db, iptables, addr
+from net import db, iptables, addr, hosts
 
 def error(cursor, str):
   if DEBUG:
@@ -14,11 +11,6 @@ def error(cursor, str):
     print
   else:
     db.log(cursor, "addcounts.py error: %s" % str)
-
-def exception_str():
-  fp = cStringIO.StringIO()
-  traceback.print_exc(None, fp)
-  return fp.getvalue()
 
 def merge_counts(cursor, incoming, outgoing):
   for ip, (out_bytes, mac) in outgoing.items():
@@ -51,8 +43,8 @@ def add_counts(cursor):
           ip = addr.parse_ip(fields['destination'])
         except ValueError:
           error(cursor, "Rule in chain %s has invalid destination ip "
-                        "`%s' (rule = %s)" 
-                        % (chain, fields['destination'], fields))
+                        "%s (rule = %s)"
+                        % (chain, db.log_str(fields['destination']), fields))
           continue
 
         if incoming.has_key(ip):
@@ -68,8 +60,8 @@ def add_counts(cursor):
           ip = addr.parse_ip(fields['source'])
         except ValueError:
           error(cursor, "Rule in chain %s has invalid source ip "
-                        "`%s' (rule = %s)" 
-                        % (chain, fields['source'], fields))
+                        "%s (rule = %s)"
+                        % (chain, db.log_str(fields['source']), fields))
           continue
 
         mac = fields['extra']
@@ -81,11 +73,11 @@ def add_counts(cursor):
         try:
           mac = addr.parse_mac(mac[4:])
         except ValueError:
-          error(cursor, "Rule in chain %s has invalid MAC `%s' "
+          error(cursor, "Rule in chain %s has invalid MAC %s "
                         "(ip = %s, rule = %s)"
-                        % (chain, mac[4:], addr.ip_str(ip), fields))
+                        % (chain, db.log_str(mac[4:]), addr.ip_str(ip), fields))
           continue
-                
+
         if outgoing.has_key(ip):
           error(cursor, "Duplicate rule in chain %s for single ip "
                         "(ip = %s, rule = %s)"
@@ -97,33 +89,26 @@ def add_counts(cursor):
   finally:
     iptables.close_counts(counts)
 
-  for ip, mac, in_bytes, out_bytes in merge_counts(cursor, incoming, 
+  for ip, mac, in_bytes, out_bytes in merge_counts(cursor, incoming,
                                                    outgoing):
-    cursor.execute("SELECT host_id, mac_addr FROM hosts "
-                   "WHERE ip_addr = %s", ip)
- 
-    row = cursor.fetchone()
-    if not row:
+    host = hosts.lookup_ip(cursor, ip)
+    if not host:
       error(cursor, "Unknown ip %s encountered in filter table "
                     "(MAC = %s, in_bytes = %s, out_bytes = %s)"
-                    % (addr.ip_str(ip), mac and addr.mac_str(mac), 
+                    % (addr.ip_str(ip), mac and addr.mac_str(mac),
                        in_bytes, out_bytes))
       continue
- 
-    # just assume this database constraint holds
-    assert cursor.rowcount == 1
- 
-    host_id, reg_mac = row
-    if mac is not None and reg_mac != mac:
+
+    if mac is not None and host.mac != mac:
       error(cursor, "Wrong MAC address in filter table for IP %s "
                     "(expected MAC = %s, MAC = %s, in_bytes = %s, "
                     "out_bytes = %s)"
-                        % (addr.ip_str(ip), addr.mac_str(reg_mac), 
+                        % (addr.ip_str(ip), addr.mac_str(host.mac),
                            addr.mac_str(mac), in_bytes, out_bytes))
       continue
 
-    db.add_count(cursor, host_id, in_bytes, out_bytes)
-  
+    db.add_count(cursor, host.id, in_bytes, out_bytes)
+
 def usage():
   sys.stderr.write("""\
 Usage: addcounts.py
@@ -142,7 +127,9 @@ if __name__ == '__main__':
       try:
         add_counts(cursor)
       except:
-        error(cursor, "FATAL ERROR\n%s" % exception_str())
+        if not DEBUG:
+          db.log_exception(cursor, 'ADDCOUNTS.PY FATAL ERROR')
+        raise
     finally:
       cursor.close()
   finally:
