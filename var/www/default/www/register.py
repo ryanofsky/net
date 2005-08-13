@@ -56,7 +56,7 @@ form below to update your registration information or unregister.</p>
   [else]
 <h3>B Co 2/69, 2nd Platoon Internet</h3>
 <h4>Register your computer</h4>
-<p>Starting August 13, in order to access the internet, you'll need to register
+<p>Starting August 14, in order to access the internet, you'll need to register
 your computer on the network. Just enter your name in the form below, hit 
 "Register," and your computer will be permanently registered. Registration
 helps the network administrators monitor individual bandwidth usage and block
