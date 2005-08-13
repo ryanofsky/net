@@ -1,10 +1,11 @@
 $TTL 60
-@       IN      SOA     kalam.localnet. kalam.localnet.  (
+@       IN      SOA     kalam.localnet. russell.yanofsky.us.army.mil.  (
                                       1   ; Serial
                                       60  ; Refresh
-                                      30  ; Retry
-                                      300 ; Expire - 1 week
-                                      120 ) ; Minimum
+                                      15  ; Retry
+                                      300 ; Expire
+                                      60 ); Minimum TTL
 		IN      NS      kalam
-kalam	IN	A	10.0.0.1
-nosmb	IN	A	10.0.0.2
+kalam	 IN	A	10.0.0.1
+linkstar IN	A	203.110.192.17
+

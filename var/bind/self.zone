@@ -1,10 +1,10 @@
-$TTL 15
-@       IN      SOA     kalam.localnet. kalam.localnet.  (
+$TTL 0
+@       IN      SOA     kalam.localnet. russell.yanofsky.us.army.mil.  (
                                       1   ; Serial
-                                      1  ; Refresh
-                                      1  ; Retry
-                                      1 ; Expire - 1 week
-                                      1 ) ; Minimum
-		IN      NS      kalam.localnet.
+                                      60  ; Refresh
+                                      15  ; Retry
+                                      300 ; Expire
+                                      0 ) ; Minimum TTL
+	IN      NS      kalam.localnet.
 *.	IN	A	1.1.1.1
-
+localnet. IN    NS      kalam.localnet.
