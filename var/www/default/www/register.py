@@ -2,8 +2,44 @@ page = """<html>
 <body>
 
 [if-any done]
-<p>[done]</p>
-[if-any url]<p>Click <a href="[url]">here</a> to procede to <strong>[url]</strong>[end]
+
+[is done "added"]
+<h3>Added Registration</h3>
+<p>Your computer is now registered, and should be able to access the 
+internet. The registration is permanent, so unless you get a new computer
+or manually delete your registration, you won't have to worry about
+registering again.</p>
+
+<p>You can update or delete your registration at any time by going to 
+<a href="http://kalam/">http://kalam/</a>. That page also provides up-to-date
+information about satellite connectivity and bandwidth usage.</p>
+[end]
+
+[is done "updated"]
+<h3>Updated registration</h3>
+<p>Your registration information has been updated.</p>
+[end]
+
+[is done "updated_ip"]
+<h3>Updated registration IP</h3>
+<p>Your computer's IP address has recently changed from [old_ip] to [ip]. This
+change is now stored in the registration database and you computer should be 
+able to access the internet again.</p>
+[end]
+
+[is done "removed"]
+<h3>Removed Registration</h3>
+<p>Your computer has been unregistered and will no longer be granted access
+to the internet.</p>
+[end]
+
+[if-any url]<p>Click <a href="[url]">here</a> to procede to 
+<strong>[url]</strong>.</p>
+
+<p>(If this link bounces you back to the registration page, it might be 
+necessary for you to restart your web browser.)</p>
+[end]
+
 [else]
   [if-any errors]
 <ul>
@@ -18,12 +54,13 @@ page = """<html>
 <p>Your computer has already been registered on this network. You can use the
 form below to update your registration information or unregister.</p>
   [else]
-<h3>Register your computer</h3>
-<p>To access the internet, you need to register your computer on this network.
-Just enter your name in the form below, hit "Register," and your computer will
-be permanently registered. Registration helps the network adminstrators
-monitor individual bandwidth usage and block unauthorized users, for faster
-internet access.</p>
+<h3>B Co 2/69, 2nd Platoon Internet</h3>
+<h4>Register your computer</h4>
+<p>Starting August 13, in order to access the internet, you'll need to register
+your computer on the network. Just enter your name in the form below, hit 
+"Register," and your computer will be permanently registered. Registration
+helps the network administrators monitor individual bandwidth usage and block
+unauthorized users, for faster internet access.</p>
   [end]
 
 <form method=post>
@@ -47,6 +84,10 @@ internet access.</p>
 </table>
 </form>
 
+[end]
+
+[if-any url][else]
+<p><a href="/">Back to Main Page</a></p>
 [end]
 
 </body>
@@ -74,10 +115,11 @@ def index(req, url=None, name=None, email=None, unregister=None):
     try:
       try:
         host = hosts.lookup_mac(cursor, mac)
+        old_ip = host and host.ip
         if unregister is not None:
           if host:
             host.update(cursor, registered=False, ip=ip)
-          done = 'REGISTRATION REMOVED'
+          done = 'removed'
           url = None
 
         elif name is not None:
@@ -85,17 +127,19 @@ def index(req, url=None, name=None, email=None, unregister=None):
             errors.append('You need to type your name')
 
           if not errors:
+            if host and host.registered:
+              done = 'updated'
+            else:
+              done = 'added'
+
             if host:
-              done = 'REGISTRATION UPDATED'
               host.update(cursor, name=name, email=email, registered=True, ip=ip)
             else:
-              done = 'REGISTRATION ADDED'
               host = hosts.Host(None, mac, ip, name, email, True, False)
-              host.insert()
+              host.insert(cursor)
 
         elif host and host.ip != ip:
-          done = ('REGISTRATION IP ADDRESS UPDATED (WAS %s, IS %s)'
-                   % (addr.ip_str(host.ip), addr.ip_str(ip)))
+          done = 'updated_ip'
           host.update(cursor, ip=ip)
 
         if not done:
@@ -117,12 +161,14 @@ def index(req, url=None, name=None, email=None, unregister=None):
 
   vars = {
     'done': done,
+    'ip': ip and addr.ip_str(ip),
+    'old_ip': old_ip and addr.ip_str(old_ip),
     'errors': errors,
     'registered': registered,
     'name': name and cgi.escape(name, True),
     'email': email and cgi.escape(email, True),
     ### enable url when internet actually works
-    'url': None and url and cgi.escape(url, True),
+    'url': url and cgi.escape(url, True),
   }
   out = cStringIO.StringIO()
   template = ezt.Template()

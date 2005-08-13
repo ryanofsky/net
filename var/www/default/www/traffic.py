@@ -2,7 +2,8 @@ page = """<html>
 <head><title>[title]</title></head>
 <body>
 <h2>[title]</h2>
-<p><a href="[switch_href]">[switch_text]</p>
+<p><a href="[switch_href]">[switch_text]<br>
+<a href="/">Back to Main Page</a></p>
 <table border=1>
 <thead>
   <tr>
