@@ -76,6 +76,13 @@ start() {
   iptables -t nat -N ACCEPT_REGISTERED
   #iptables -t nat -A ACCEPT_REGISTERED -m mac -s 10.0.0.10 --mac-source 00:00:00:00:00:00 -j ACCEPT
 
+  # next line sends all dns to a forwarding server to deal with conntrack bug.
+  # the conntrack bug causes udp packets to be redirected even after the
+  # iptables rules which caused the redirects are removed. as a result, the
+  # dns forwarding rules above don't work right, so we supercede them with
+  # this one here which redirects to a special dnsforward.py server on 5301
+  iptables -t nat -A PREROUTING -i eth0 -p udp --destination-port 53 -j REDIRECT --to-ports 5301
+
   iptables -t nat -A PREROUTING -i eth0 -j REDIRECT_BLOCKED
   iptables -t nat -A PREROUTING -i eth0 -j ACCEPT_REGISTERED
   iptables -t nat -A PREROUTING -i eth0 -j REGISTER
@@ -86,5 +93,6 @@ start() {
   iptables -t filter -L -n
   iptables -t nat -L -n
 }
+
 
 
