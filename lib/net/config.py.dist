@@ -1,3 +1,13 @@
 MYSQL_USER = ''
 MYSQL_PASSWORD = ''
 MYSQL_DATABASE = ''
+
+# address dnsforward.py should listen on
+DNS_LISTEN = ('', 5301)
+
+# address dnsforward.py should forward normal requests to
+DNS_FORWARD = ('10.0.0.1', 5300)
+
+# address dnsforward.py should forward registered requests to
+DNS_FORWARD_REGISTERED = ('10.0.0.1', 53)
+
