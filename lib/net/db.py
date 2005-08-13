@@ -158,15 +158,15 @@ def _bool(val):
   """Work around bug in MySQLdb escaping of bools
 
   When substituting python booleans into %s patterns, MySQLdb makes them into
-  string literals. For example
+  string literals. So,
 
     cursor.execute("SELECT %s", (False,))   becomes  SELECT 'False'
     cursor.execute("SELECT %s", (True,))    becomes  SELECT 'True'
 
-  This is inconvenient, and inconsistent with the way it handles other python
-  types like NoneType.
+  This is inconvenient, and inconsistent with the way MySQLdb handles other
+  python types like NoneType.
 
-    cursor.execute("SELECT %s", (False,))   becomes  SELECT NULL
+    cursor.execute("SELECT %s", (None,))    becomes  SELECT NULL
 
   This function converts booleans to a form mysql won't mangle.
   """
