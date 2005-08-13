@@ -109,7 +109,7 @@ class Host:
     if self.blocked:
       iptables.add_blocked(cursor, self.mac)
     elif self.registered and self.ip is not None:
-      ### should add starting time for byte counts here
+      db.add_count(cursor, self.id, 0, 0)
       iptables.add_registered(cursor, self.ip, self.mac)
 
   def iptables_del(self, cursor):
