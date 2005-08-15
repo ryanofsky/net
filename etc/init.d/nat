@@ -30,9 +30,6 @@ stop() {
   iptables -t nat -F ACCEPT_LOCAL
   iptables -t nat -X ACCEPT_LOCAL
   eend $?
-
-  iptables -t filter -L -n
-  iptables -t nat -L -n
 }
 
 start() {
@@ -41,47 +38,50 @@ start() {
   echo 1 > /proc/sys/net/ipv4/ip_forward
   iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
 
-  # don't forward packets for strangers
+  # don't include traffic to sergeant benjamin's router in byte counts
+  iptables -t filter -A FORWARD -i eth0 -o eth1 -d 192.168.0.1 -j ACCEPT
+  iptables -t filter -A FORWARD -i eth1 -o eth0 -s 192.168.0.1 -j ACCEPT
+
+  # forward packets only for registered comptuers
   iptables -t filter -N ACCEPT_REGISTERED_SRC
-  #iptables -t filter -A ACCEPT_REGISTERED_SRC -s 10.0.0.10 -m mac --mac-source 00:03:47:92:CC:95 -j ACCEPT
-
   iptables -t filter -N ACCEPT_REGISTERED_DST
-  #iptables -t filter -A ACCEPT_REGISTERED_DST -d 10.0.0.10 -j ACCEPT
-
   iptables -t filter -A FORWARD -i eth0 -o eth1 -j ACCEPT_REGISTERED_SRC
   iptables -t filter -A FORWARD -i eth0 -o eth1 -j DROP
   iptables -t filter -A FORWARD -i eth1 -o eth0 -j ACCEPT_REGISTERED_DST
   iptables -t filter -A FORWARD -i eth1 -o eth0 -j DROP
 
   # registration and block page redirects
+
   iptables -t nat -N ACCEPT_LOCAL
   iptables -t nat -A ACCEPT_LOCAL -d 10.0.0.0/8 -j ACCEPT
   iptables -t nat -A ACCEPT_LOCAL -d 127.0.0.0/8 -j ACCEPT
 
   iptables -t nat -N BLOCK
-  iptables -t nat -A BLOCK -p udp --destination-port 53 -j REDIRECT --to-ports 5300
+  iptables -t nat -A BLOCK -p udp --destination-port 53 \
+    -j REDIRECT --to-ports 5300
   iptables -t nat -A BLOCK -j ACCEPT_LOCAL
-  iptables -t nat -A BLOCK -p tcp --destination-port 80 -j REDIRECT --to-ports 8002
+  iptables -t nat -A BLOCK -p tcp --destination-port 80 \
+    -j REDIRECT --to-ports 8002
   iptables -t nat -A BLOCK -j DROP
 
   iptables -t nat -N REGISTER
-  iptables -t nat -A REGISTER -i eth0 -p udp --destination-port 53 -j REDIRECT --to-ports 5300
+  iptables -t nat -A REGISTER -i eth0 -p udp --destination-port 53 \
+    -j REDIRECT --to-ports 5300
   iptables -t nat -A REGISTER -j ACCEPT_LOCAL
-  iptables -t nat -A REGISTER -i eth0 -p tcp --destination-port 80 -j REDIRECT --to-ports 8001
+  iptables -t nat -A REGISTER -i eth0 -p tcp --destination-port 80 \
+    -j REDIRECT --to-ports 8001
   iptables -t nat -A BLOCK -j DROP
 
   iptables -t nat -N REDIRECT_BLOCKED
-  #iptables -t nat -A REDIRECT_BLOCKED -m mac --mac-source 00:03:47:92:CC:99 -j BLOCK
-
   iptables -t nat -N ACCEPT_REGISTERED
-  #iptables -t nat -A ACCEPT_REGISTERED -m mac -s 10.0.0.10 --mac-source 00:00:00:00:00:00 -j ACCEPT
 
   # next line sends all dns to a forwarding server to deal with conntrack bug.
   # the conntrack bug causes udp packets to be redirected even after the
   # iptables rules which caused the redirects are removed. as a result, the
   # dns forwarding rules above don't work right, so we supercede them with
   # this one here which redirects to a special dnsforward.py server on 5301
-  iptables -t nat -A PREROUTING -i eth0 -p udp --destination-port 53 -j REDIRECT --to-ports 5301
+  iptables -t nat -A PREROUTING -i eth0 -p udp --destination-port 53 \
+    -j REDIRECT --to-ports 5301
 
   iptables -t nat -A PREROUTING -i eth0 -j REDIRECT_BLOCKED
   iptables -t nat -A PREROUTING -i eth0 -j ACCEPT_REGISTERED
@@ -89,10 +89,4 @@ start() {
 
   /root/net/bin/addhosts.py
   eend $?
-
-  iptables -t filter -L -n
-  iptables -t nat -L -n
 }
-
-
-
