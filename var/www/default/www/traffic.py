@@ -22,7 +22,7 @@ page = """<html>
   <tr>
     <td>[hosts.name]</td>
     [for hosts.periods]
-    <td>[if-any hosts.periods][hosts.periods][else]&nbsp;[end]</td>
+    <td align=right>[if-any hosts.periods][hosts.periods][else]&nbsp;[end]</td>
     [end]
   </tr>
 [end]
