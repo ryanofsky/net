@@ -20,7 +20,7 @@ if __name__ == '__main__':
     cursor = conn.cursor()
     try:
       try:
-        for host in hosts.get_hosts(cursor):
+        for host in list(hosts.get_hosts(cursor)):
           print "Adding host `%s' (%s)" % (host.name, addr.mac_str(host.mac))
           host.iptables_add(cursor)
       except:
