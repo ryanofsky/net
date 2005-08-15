@@ -20,7 +20,7 @@ def handler(req):
   req.headers_out['Cache-Control'] = 'no-store, no-cache'
   req.headers_out['Pragma'] = 'no-cache'
   req.headers_out['Last-Modified'] = date
-  req.headers_out['Expires'] = date
+  req.headers_out['Expires'] = rfc822.formatdate(0)
   req.headers_out['Date'] = date
   req.content_type = 'text/html'
   req.write('<p>The document has moved <a href="%s">here</a></p>\n' % loc)
