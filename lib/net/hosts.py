@@ -130,6 +130,11 @@ def lookup_ip(cursor, ip):
   return row and Host(*row)
 
 
+def lookup_id(cursor, id):
+  row = db.lookup_host_with_id(cursor, id)
+  return row and Host(*row)
+
+
 def get_hosts(cursor):
   for row in db.get_hosts(cursor):
     yield Host(*row)

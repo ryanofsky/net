@@ -39,6 +39,14 @@ def lookup_host_with_ip(cursor, ip):
     return cursor.fetchone()
   return None
 
+def lookup_host_with_id(cursor, id):
+  if cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
+                      "registered, blocked "
+                    "FROM hosts WHERE host_id = %s", id):
+    assert cursor.rowcount == 1
+    return cursor.fetchone()
+  return None
+
 def insert_host(cursor, mac, ip, name, email, registered, blocked):
   """Insert host record with specified values"""
   cursor.execute("INSERT INTO hosts (mac_addr, ip_addr, name, email, "
@@ -107,7 +115,7 @@ def parse_time(datetime):
     # datetime is an eGenix mx.DateTime object
     t = datetime.tuple()
 
-    return calendar.timegm(t)
+  return calendar.timegm(t)
 
 def add_count(cursor, host_id, incoming, outgoing):
   time = time_str()
@@ -150,6 +158,7 @@ def add_count(cursor, host_id, incoming, outgoing):
                    "VALUES (%s, %s, %s, %s, %s)",
                    (host_id, time, time, incoming, outgoing))
 
+  assert cursor.rowcount == 1
   cursor.execute("INSERT INTO byte_counts (host_id, start_time) "
                  "VALUES (%s, %s)", (host_id, time))
 
