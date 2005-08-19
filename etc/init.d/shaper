@@ -1,0 +1,110 @@
+#!/sbin/runscript
+
+depend() {
+  need mysql
+}
+
+stop() {
+  ebegin "Disabling Shaper"
+  tc qdisc del dev eth1 root handle 1:
+  tc qdisc del dev eth1 handle ffff: ingress
+  iptables -t mangle -F POSTROUTING
+  iptables -t mangle -F MARK_OUT
+  iptables -t mangle -X MARK_OUT
+  eend $?
+
+  tc qdisc show dev eth1
+  tc class show dev eth1
+  tc filter show dev eth1  
+}
+
+start() {
+  ebegin "Enabling Shaper"
+
+  # add root qdisc and class
+  tc qdisc add dev eth1 root handle 1: htb default 15
+  tc class add dev eth1 parent 1: classid 1:1 htb rate 64kbit ceil 64kbit
+
+  # interactive class
+  tc class add dev eth1 parent 1:1 classid 1:11 htb rate 20kbit ceil 20kbit prio 0
+
+  # web, imap class
+  tc class add dev eth1 parent 1:1 classid 1:12 htb rate 20kbit ceil 64kbit prio 1
+
+  # prioritized bulk (maximized throughput)
+  tc class add dev eth1 parent 1:1 classid 1:13 htb rate 10kbit ceil 64kbit prio 2
+  tc qdisc add dev eth1 parent 1:13 handle 130: sfq perturb 10
+
+  # minimized-cost
+  tc class add dev eth1 parent 1:1 classid 1:14 htb rate 4kbit ceil 64kbit prio 3
+  tc qdisc add dev eth1 parent 1:14 handle 140: sfq perturb 10
+
+  # leftover bulk
+  tc class add dev eth1 parent 1:1 classid 1:15 htb rate 10kbit ceil 64kbit prio 3
+  tc qdisc add dev eth1 parent 1:15 handle 150: sfq perturb 10
+
+  echo "7"
+  # tc filters
+  tc filter add dev eth1 parent 1:0 protocol ip prio 1 handle 1 fw classid 1:11
+  tc filter add dev eth1 parent 1:0 protocol ip prio 2 handle 2 fw classid 1:12
+  tc filter add dev eth1 parent 1:0 protocol ip prio 3 handle 3 fw classid 1:13
+  tc filter add dev eth1 parent 1:0 protocol ip prio 4 handle 4 fw classid 1:14
+  tc filter add dev eth1 parent 1:0 protocol ip prio 5 handle 5 fw classid 1:15
+
+  echo "8"
+  # netfilter matches
+  iptables -t mangle -N MARK_OUT
+  iptables -t mangle -A POSTROUTING -o eth1 -j MARK_OUT
+
+  # icmp
+  iptables -t mangle -A MARK_OUT -p icmp -j MARK --set-mark 0x1
+  iptables -t mangle -A MARK_OUT -p icmp -j RETURN
+
+  # tos flags
+  iptables -t mangle -A MARK_OUT -m tos --tos Minimize-Delay -j MARK --set-mark 0x1
+  iptables -t mangle -A MARK_OUT -m tos --tos Minimize-Delay -j RETURN
+  iptables -t mangle -A MARK_OUT -m tos --tos Minimize-Cost -j MARK --set-mark 0x4
+  iptables -t mangle -A MARK_OUT -m tos --tos Minimize-Cost -j RETURN
+  iptables -t mangle -A MARK_OUT -m tos --tos Maximize-Throughput -j MARK --set-mark 0x3
+  iptables -t mangle -A MARK_OUT -m tos --tos Maximize-Throughput -j RETURN
+
+  # ssh
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --sport 22 -j MARK --set-mark 0x1
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --sport 22 -j RETURN
+
+  # tcp connection initialization
+  iptables -t mangle -I MARK_OUT -p tcp -m tcp --tcp-flags SYN,RST,ACK SYN -j MARK --set-mark 0x1
+  iptables -t mangle -I MARK_OUT -p tcp -m tcp --tcp-flags SYN,RST,ACK SYN -j RETURN
+
+  # ssh
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --sport 22 -j MARK --set-mark 0x1
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --sport 22 -j RETURN
+
+  # web, imap
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 80 -j MARK --set-mark 0x2
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 80 -j RETURN
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 443 -j MARK --set-mark 0x2
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 443 -j RETURN
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 143 -j MARK --set-mark 0x2
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 143 -j RETURN
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 993 -j MARK --set-mark 0x2
+  iptables -t mangle -A MARK_OUT -p tcp -m tcp --dport 993 -j RETURN
+
+  # default rule
+  iptables -t mangle -A MARK_OUT -j MARK --set-mark 0x6
+
+  # ingress policer to prevent queueing
+  tc qdisc add dev eth1 handle ffff: ingress
+
+  ### next statement doesn't currently work
+  tc filter add dev eth1 parent ffff: protocol ip prio 50 u32 match ip src \
+    0.0.0.0/0 police rate 512kbit burst 10k drop flowid :1
+  eend $?
+
+  tc qdisc show dev eth1
+  tc class show dev eth1
+  tc filter show dev eth1  
+}
+
+
+
