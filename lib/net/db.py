@@ -117,6 +117,16 @@ def parse_time(datetime):
 
   return calendar.timegm(t)
 
+def blackout_enabled(cursor):
+  cursor.execute("SELECT 1 FROM globals WHERE name = 'blackout'"
+                 "AND value IS NOT NULL")
+  return cursor.rowcount > 0
+
+def blackout_message(cursor):
+  cursor.execute("SELECT value FROM globals WHERE name = 'blackout_message'")
+  row = cursor.fetchone()
+  return row and row[0]
+
 def add_count(cursor, host_id, incoming, outgoing):
   time = time_str()
 

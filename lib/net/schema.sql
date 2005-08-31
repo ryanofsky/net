@@ -30,3 +30,20 @@ CREATE TABLE IF NOT EXISTS byte_counts
   outgoing INT UNSIGNED,
   PRIMARY KEY (byte_count_id)
 );
+
+CREATE TABLE IF NOT EXISTS globals
+(
+  name VARCHAR(255) NOT NULL,
+  value TEXT,
+  PRIMARY KEY (name)
+);
+
+INSERT INTO globals (name, value) VALUES ('blackout', NULL);
+INSERT INTO globals (name, value) VALUES ('blackout_message', '<html>
+<head><title>BLOCKED</title></head>
+<body>
+<h1>Blocked</h1>
+<p>As of 2130 31 Aug 2005, blackout is in effect.</p>
+<p>The internet will be down until the blackout is lifted.</p>
+</body>
+</html>');
