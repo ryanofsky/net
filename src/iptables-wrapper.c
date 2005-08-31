@@ -23,12 +23,13 @@ int valid_chains(char * table, char * chain, char * action)
   if (strcmp(table, "filter") == 0)
   {
     if (strcmp(chain, "ACCEPT_REGISTERED_SRC") != 0
-               && strcmp(chain, "ACCEPT_REGISTERED_DST") != 0)
+        && strcmp(chain, "ACCEPT_REGISTERED_DST") != 0
+        && strcmp(chain, "MAYBE_BLACKOUT") != 0)
     {
       fprintf(stderr, "Error: invalid chain `%s' for filter table\n", chain);
       valid = 0;
     }
-    if (strcmp(action, "ACCEPT") != 0)
+    if (strcmp(action, "ACCEPT") != 0 && strcmp(action, "DROP") != 0)
     {
       fprintf(stderr, "Error: invalid action `%s' for filter table\n", action);
       valid = 0;
@@ -37,7 +38,8 @@ int valid_chains(char * table, char * chain, char * action)
   else if (strcmp(table, "nat") == 0)
   {
     if (strcmp(chain, "REDIRECT_BLOCKED") != 0
-        && strcmp(chain, "ACCEPT_REGISTERED") != 0)
+        && strcmp(chain, "ACCEPT_REGISTERED") != 0
+        && strcmp(chain, "MAYBE_BLACKOUT") != 0)
     {
       fprintf(stderr, "Error: invalid chain `%s' for nat table\n", chain);
       valid = 0;
@@ -173,7 +175,7 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    if (!ip && !mac)
+    if (!ip && !mac && strcmp(chain, "MAYBE_BLACKOUT") != 0)
     {
       fprintf(stderr, "Error: must specify at least one ip or mac address\n");
       return 1;
