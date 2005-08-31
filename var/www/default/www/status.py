@@ -5,7 +5,7 @@ page = """<html>
 <table border=1>
   <tr>
     <td><strong>Internet Gateway</strong></td>
-    <td><font color=green>Up</font></td>
+    <td>[if-any gate]<font color=green>Up</font>[else]<font color=red>Down</font> (Blackout)[end]</td>
   </tr>
   <tr>
     <td><strong>Satellite Link</strong></td>
@@ -53,9 +53,20 @@ def connect_sat():
     sock.close()
 
 def index(req, outgoing='', sort=''):
-  sat = connect_sat()
+  conn = db.connect()
+  try:
+    cursor = conn.cursor()
+    try:
+      gate = ezt.boolean(not db.blackout_enabled(cursor))
+    finally:
+      cursor.close()
+  finally:
+    conn.close()
+
+  sat = ezt.boolean(connect_sat())
   vars = {
     'date': time.strftime('%a %b %d %H:%M:%S %Z %Y'),
+    'gate': gate,
     'sat': sat,
   }
 
