@@ -118,7 +118,7 @@ def parse_time(datetime):
   return calendar.timegm(t)
 
 def blackout_enabled(cursor):
-  cursor.execute("SELECT 1 FROM globals WHERE name = 'blackout'"
+  cursor.execute("SELECT 1 FROM globals WHERE name = 'blackout' "
                  "AND value IS NOT NULL")
   return cursor.rowcount > 0
 
@@ -126,6 +126,31 @@ def blackout_message(cursor):
   cursor.execute("SELECT value FROM globals WHERE name = 'blackout_message'")
   row = cursor.fetchone()
   return row and row[0]
+
+def set_blackout(cursor, enabled=None, message=None):
+  if message is not None:
+    cursor.execute("UPDATE globals SET value = %s "
+                   "WHERE name = 'blackout_message'", message)
+    if not cursor.rowcount:
+      cursor.execute("INSERT INTO globals (name, value) "
+                     "VALUES ('blackout_message', %s)",
+                     message)
+
+  if enabled is not None:
+    enabled_now = blackout_enabled(cursor)
+    if enabled and not enabled_now:
+      cursor.execute("UPDATE globals SET value = 'enabled' "
+                     "WHERE name = 'blackout'")
+      if not cursor.rowcount:
+        cursor.execute("INSERT INTO globals (name, value) "
+                       "VALUES ('blackout', 'enabled')")
+      return True
+    elif not enabled and enabled_now:
+      cursor.execute("UPDATE globals SET value = NULL "
+                     "WHERE name = 'blackout'")
+      return True
+
+  return False
 
 def add_count(cursor, host_id, incoming, outgoing):
   time = time_str()
