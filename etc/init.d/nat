@@ -12,6 +12,8 @@ stop() {
 
   # remove filters
   iptables -t filter -F FORWARD
+  iptables -t filter -F MAYBE_BLACKOUT
+  iptables -t filter -X MAYBE_BLACKOUT
   iptables -t filter -F ACCEPT_REGISTERED_SRC
   iptables -t filter -X ACCEPT_REGISTERED_SRC
   iptables -t filter -F ACCEPT_REGISTERED_DST
@@ -19,6 +21,8 @@ stop() {
 
   # remove redirects
   iptables -t nat -F PREROUTING
+  iptables -t nat -F MAYBE_BLACKOUT
+  iptables -t nat -X MAYBE_BLACKOUT
   iptables -t nat -F ACCEPT_REGISTERED
   iptables -t nat -X ACCEPT_REGISTERED
   iptables -t nat -F REDIRECT_BLOCKED
@@ -45,8 +49,11 @@ start() {
   # forward packets only for registered comptuers
   iptables -t filter -N ACCEPT_REGISTERED_SRC
   iptables -t filter -N ACCEPT_REGISTERED_DST
+  iptables -t filter -N MAYBE_BLACKOUT
+  iptables -t filter -A FORWARD -i eth0 -o eth1 -j MAYBE_BLACKOUT
   iptables -t filter -A FORWARD -i eth0 -o eth1 -j ACCEPT_REGISTERED_SRC
   iptables -t filter -A FORWARD -i eth0 -o eth1 -j DROP
+  iptables -t filter -A FORWARD -i eth1 -o eth0 -j MAYBE_BLACKOUT
   iptables -t filter -A FORWARD -i eth1 -o eth0 -j ACCEPT_REGISTERED_DST
   iptables -t filter -A FORWARD -i eth1 -o eth0 -j DROP
 
@@ -74,6 +81,7 @@ start() {
 
   iptables -t nat -N REDIRECT_BLOCKED
   iptables -t nat -N ACCEPT_REGISTERED
+  iptables -t nat -N MAYBE_BLACKOUT
 
   # next line sends all dns to a forwarding server to deal with conntrack bug.
   # the conntrack bug causes udp packets to be redirected even after the
@@ -84,6 +92,7 @@ start() {
     -j REDIRECT --to-ports 5301
 
   iptables -t nat -A PREROUTING -i eth0 -j REDIRECT_BLOCKED
+  iptables -t nat -A PREROUTING -i eth0 -j MAYBE_BLACKOUT
   iptables -t nat -A PREROUTING -i eth0 -j ACCEPT_REGISTERED
   iptables -t nat -A PREROUTING -i eth0 -j REGISTER
 
