@@ -2,7 +2,7 @@
 
 import sys
 
-from net import db, hosts, addr
+from net import db, hosts, addr, iptables
 
 def usage():
   sys.stderr.write("""\
@@ -20,6 +20,9 @@ if __name__ == '__main__':
     cursor = conn.cursor()
     try:
       try:
+        if db.blackout_enabled(cursor):
+          iptables.enable_blackout(cursor)
+
         for host in list(hosts.get_hosts(cursor)):
           print "Adding host `%s' (%s)" % (host.name, addr.mac_str(host.mac))
           host.iptables_add(cursor)
