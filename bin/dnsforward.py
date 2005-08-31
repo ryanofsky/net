@@ -29,14 +29,14 @@ def run(cursor):
     for r in readable:
       if r is server:
         query, client_addr = server.recvfrom(BUFSIZE)
-        print "RECIEVED QUERY FROM", repr(client_addr)
+        #print "RECIEVED QUERY FROM", repr(client_addr)
 
         client = Client(socket.socket(socket.AF_INET, socket.SOCK_DGRAM),
                         client_addr, now + TIMEOUT)
 
         dest = forward_addr(cursor, client.addr)
         client.socket.sendto(query, dest)
-        print "FORWARDED QUERY TO", repr(dest), "USING", repr(client.socket.getsockname())
+        #print "FORWARDED QUERY TO", repr(dest), "USING", repr(client.socket.getsockname())
 
         read_handles.append(client)
 
@@ -44,16 +44,16 @@ def run(cursor):
         client = r
 
         response, server_addr = client.socket.recvfrom(BUFSIZE)
-        print "RECIEVED RESPONSE FOR", repr(client.socket.getsockname())
+        #print "RECIEVED RESPONSE FOR", repr(client.socket.getsockname())
 
         server.sendto(response, client.addr)
-        print "FORWARDED RESPONSE TO", repr(client.addr)
+        #print "FORWARDED RESPONSE TO", repr(client.addr)
 
         read_handles.remove(client)
 
     for client in read_handles[1:]:
       if client.timeout < now:
-        print "QUERY TIMED OUT"
+        #print "QUERY TIMED OUT"
         read_handles.remove(client)
       else:
         break
@@ -70,6 +70,8 @@ class Client:
 
 def forward_addr(cursor, client_addr):
   """Determine which DNS server a client's query should be forwarded to"""
+  if db.blackout_enabled(cursor):
+    return config.DNS_FORWARD
   ip = addr.parse_ip(client_addr[0])
   host = hosts.lookup_ip(cursor, ip)
   if not host or host.blocked or not host.registered:
