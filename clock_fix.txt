@@ -1,0 +1,150 @@
+=====================================================================
+Output from checkcounts.py:
+
+ERROR row 218703, host 1: start time 2005-08-31 07:47:01 > end time 2005-08-31 07:46:52
+ERROR row 218709, host 5: start time 2005-08-31 07:47:04 > end time 2005-08-31 07:46:55
+ERROR row 218713, host 8: start time 2005-08-31 07:47:05 > end time 2005-08-31 07:46:55
+ERROR row 218707, host 10: start time 2005-08-31 07:47:03 > end time 2005-08-31 07:46:53
+ERROR row 218712, host 11: start time 2005-08-31 07:47:05 > end time 2005-08-31 07:46:55
+ERROR row 218711, host 12: start time 2005-08-31 07:47:04 > end time 2005-08-31 07:46:55
+ERROR row 218708, host 15: start time 2005-08-31 07:47:03 > end time 2005-08-31 07:46:54
+ERROR row 218705, host 16: start time 2005-08-31 07:47:03 > end time 2005-08-31 07:46:53
+ERROR row 218710, host 17: start time 2005-08-31 07:47:04 > end time 2005-08-31 07:46:55
+ERROR row 162454, host 19 has NULL byte counts
+ERROR row 218704, host 25: start time 2005-08-31 07:47:02 > end time 2005-08-31 07:46:52
+
+=====================================================================
+Output from fixcounts.py:
+
+SELECT byte_count_id, host_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE start_time > end_time ORDER BY byte_count_id
+Invalid row 218703, host = 1, start = 2005-08-31 07:47:01, end = 2005-08-31 07:46:52, incoming = 51078, outgoing = 4372
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 1 AND byte_count_id > 218703 AND end_time <= '2005-08-31 07:47:01' ORDER BY byte_count_id
+Invalid adjacent row 218714, host = 1, start = 2005-08-31 07:46:52, end = 2005-08-31 07:47:01, incoming = 16935, outgoing = 2097
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 1 AND start_time = '2005-08-31 07:47:01' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218703, host = 1, start = 2005-08-31 07:47:01, end = 2005-08-31 07:46:52, incoming = 51078, outgoing = 4372
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:01', incoming = 119091, outgoing = 10841 WHERE byte_count_id = 218703
+DELETE FROM byte_counts WHERE byte_count_id IN (218703,218714)
+
+Invalid row 218704, host = 25, start = 2005-08-31 07:47:02, end = 2005-08-31 07:46:52, incoming = 2789, outgoing = 1204
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 25 AND byte_count_id > 218704 AND end_time <= '2005-08-31 07:47:02' ORDER BY byte_count_id
+Invalid adjacent row 218715, host = 25, start = 2005-08-31 07:46:52, end = 2005-08-31 07:47:01, incoming = 124, outgoing = 844
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 25 AND start_time = '2005-08-31 07:47:01' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218725, host = 25, start = 2005-08-31 07:47:01, end = 2005-08-31 07:48:01, incoming = 79615, outgoing = 36439
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:02', incoming = 82528, outgoing = 38487 WHERE byte_count_id = 218725
+DELETE FROM byte_counts WHERE byte_count_id IN (218704,218715)
+
+Invalid row 218705, host = 16, start = 2005-08-31 07:47:03, end = 2005-08-31 07:46:53, incoming = 80, outgoing = 80
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 16 AND byte_count_id > 218705 AND end_time <= '2005-08-31 07:47:03' ORDER BY byte_count_id
+Invalid adjacent row 218716, host = 16, start = 2005-08-31 07:46:53, end = 2005-08-31 07:47:02, incoming = 0, outgoing = 0
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 16 AND start_time = '2005-08-31 07:47:02' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218726, host = 16, start = 2005-08-31 07:47:02, end = 2005-08-31 07:48:02, incoming = 80, outgoing = 92
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:03', incoming = 160, outgoing = 172 WHERE byte_count_id = 218726
+DELETE FROM byte_counts WHERE byte_count_id IN (218705,218716)
+
+Invalid row 218707, host = 10, start = 2005-08-31 07:47:03, end = 2005-08-31 07:46:53, incoming = 160, outgoing = 158
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 10 AND byte_count_id > 218707 AND end_time <= '2005-08-31 07:47:03' ORDER BY byte_count_id
+Invalid adjacent row 218717, host = 10, start = 2005-08-31 07:46:53, end = 2005-08-31 07:47:03, incoming = 0, outgoing = 0
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 10 AND start_time = '2005-08-31 07:47:03' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218707, host = 10, start = 2005-08-31 07:47:03, end = 2005-08-31 07:46:53, incoming = 160, outgoing = 158
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:03', incoming = 320, outgoing = 316 WHERE byte_count_id = 218707
+DELETE FROM byte_counts WHERE byte_count_id IN (218707,218717)
+
+Invalid row 218708, host = 15, start = 2005-08-31 07:47:03, end = 2005-08-31 07:46:54, incoming = 80, outgoing = 80
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 15 AND byte_count_id > 218708 AND end_time <= '2005-08-31 07:47:03' ORDER BY byte_count_id
+Invalid adjacent row 218718, host = 15, start = 2005-08-31 07:46:54, end = 2005-08-31 07:47:03, incoming = 0, outgoing = 0
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 15 AND start_time = '2005-08-31 07:47:03' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218708, host = 15, start = 2005-08-31 07:47:03, end = 2005-08-31 07:46:54, incoming = 80, outgoing = 80
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:03', incoming = 160, outgoing = 160 WHERE byte_count_id = 218708
+DELETE FROM byte_counts WHERE byte_count_id IN (218708,218718)
+
+Invalid row 218709, host = 5, start = 2005-08-31 07:47:04, end = 2005-08-31 07:46:55, incoming = 64242, outgoing = 12932
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 5 AND byte_count_id > 218709 AND end_time <= '2005-08-31 07:47:04' ORDER BY byte_count_id
+Invalid adjacent row 218719, host = 5, start = 2005-08-31 07:46:55, end = 2005-08-31 07:47:04, incoming = 8158, outgoing = 1714
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 5 AND start_time = '2005-08-31 07:47:04' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218709, host = 5, start = 2005-08-31 07:47:04, end = 2005-08-31 07:46:55, incoming = 64242, outgoing = 12932
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:04', incoming = 136642, outgoing = 27578 WHERE byte_count_id = 218709
+DELETE FROM byte_counts WHERE byte_count_id IN (218709,218719)
+
+Invalid row 218710, host = 17, start = 2005-08-31 07:47:04, end = 2005-08-31 07:46:55, incoming = 160, outgoing = 157
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 17 AND byte_count_id > 218710 AND end_time <= '2005-08-31 07:47:04' ORDER BY byte_count_id
+Invalid adjacent row 218720, host = 17, start = 2005-08-31 07:46:55, end = 2005-08-31 07:47:04, incoming = 0, outgoing = 0
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 17 AND start_time = '2005-08-31 07:47:04' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218710, host = 17, start = 2005-08-31 07:47:04, end = 2005-08-31 07:46:55, incoming = 160, outgoing = 157
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:04', incoming = 320, outgoing = 314 WHERE byte_count_id = 218710
+DELETE FROM byte_counts WHERE byte_count_id IN (218710,218720)
+
+Invalid row 218711, host = 12, start = 2005-08-31 07:47:04, end = 2005-08-31 07:46:55, incoming = 40, outgoing = 40
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 12 AND byte_count_id > 218711 AND end_time <= '2005-08-31 07:47:04' ORDER BY byte_count_id
+Invalid adjacent row 218721, host = 12, start = 2005-08-31 07:46:55, end = 2005-08-31 07:47:04, incoming = 0, outgoing = 0
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 12 AND start_time = '2005-08-31 07:47:04' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218711, host = 12, start = 2005-08-31 07:47:04, end = 2005-08-31 07:46:55, incoming = 40, outgoing = 40
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:04', incoming = 80, outgoing = 80 WHERE byte_count_id = 218711
+DELETE FROM byte_counts WHERE byte_count_id IN (218711,218721)
+
+Invalid row 218712, host = 11, start = 2005-08-31 07:47:05, end = 2005-08-31 07:46:55, incoming = 120, outgoing = 156
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 11 AND byte_count_id > 218712 AND end_time <= '2005-08-31 07:47:05' ORDER BY byte_count_id
+Invalid adjacent row 218722, host = 11, start = 2005-08-31 07:46:55, end = 2005-08-31 07:47:05, incoming = 0, outgoing = 0
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 11 AND start_time = '2005-08-31 07:47:05' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218712, host = 11, start = 2005-08-31 07:47:05, end = 2005-08-31 07:46:55, incoming = 120, outgoing = 156
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:05', incoming = 240, outgoing = 312 WHERE byte_count_id = 218712
+DELETE FROM byte_counts WHERE byte_count_id IN (218712,218722)
+
+Invalid row 218713, host = 8, start = 2005-08-31 07:47:05, end = 2005-08-31 07:46:55, incoming = 151965, outgoing = 12009
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 8 AND byte_count_id > 218713 AND end_time <= '2005-08-31 07:47:05' ORDER BY byte_count_id
+Invalid adjacent row 218723, host = 8, start = 2005-08-31 07:46:55, end = 2005-08-31 07:47:05, incoming = 0, outgoing = 40
+SELECT byte_count_id, start_time, end_time, incoming, outgoing FROM byte_counts WHERE host_id = 8 AND start_time = '2005-08-31 07:47:05' ORDER BY byte_count_id LIMIT 1
+Updating follow-on row 218713, host = 8, start = 2005-08-31 07:47:05, end = 2005-08-31 07:46:55, incoming = 151965, outgoing = 12009
+UPDATE byte_counts SET start_time = '2005-08-31 07:47:05', incoming = 303930, outgoing = 24058 WHERE byte_count_id = 218713
+DELETE FROM byte_counts WHERE byte_count_id IN (218713,218723)
+
+=====================================================================
+Output from checkcounts.py:
+
+ERROR row 162454, host 19 has NULL byte counts
+
+=====================================================================
+Manually fix weird row:
+
+select * from byte_counts WHERE host_id = 19 and byte_count_id > 160000 order by byte_count_id;
++---------------+---------+---------------------+---------------------+----------+----------+
+| byte_count_id | host_id | start_time          | end_time            | incoming | outgoing |
++---------------+---------+---------------------+---------------------+----------+----------+
+|        162290 |      19 | 2005-08-27 12:56:01 | 2005-08-27 12:57:02 |   294584 |    36982 |
+|        162306 |      19 | 2005-08-27 12:57:02 | 2005-08-27 12:58:01 |   114077 |    45442 |
+|        162323 |      19 | 2005-08-27 12:58:01 | 2005-08-27 12:59:02 |    49633 |    21765 |
+|        162340 |      19 | 2005-08-27 12:59:02 | 2005-08-27 13:00:02 |   120709 |     4774 |
+|        162356 |      19 | 2005-08-27 13:00:02 | 2005-08-27 13:01:02 |   219964 |     3880 |
+|        162372 |      19 | 2005-08-27 13:01:02 | 2005-08-27 13:02:01 |   312952 |     5400 |
+|        162388 |      19 | 2005-08-27 13:02:01 | 2005-08-27 13:03:01 |   348804 |    22677 |
+|        162405 |      19 | 2005-08-27 13:03:01 | 2005-08-27 13:04:02 |   317504 |    13500 |
+|        162422 |      19 | 2005-08-27 13:04:02 | 2005-08-27 13:05:02 |    86567 |     4341 |
+|        162438 |      19 | 2005-08-27 13:05:02 | 2005-08-31 21:13:02 |        0 |        0 |
+|        162454 |      19 | 2005-08-31 21:13:02 | 2005-08-31 21:13:08 |     NULL |        0 |
+|        225939 |      19 | 2005-08-31 21:13:08 | 2005-09-01 19:05:03 |        0 |        0 |
+|        225940 |      19 | 2005-09-01 19:05:03 | NULL                |     NULL |     NULL |
++---------------+---------+---------------------+---------------------+----------+----------+
+
+DELETE FROM byte_counts WHERE byte_count_id IN (162454, 225939);
+UPDATE byte_counts SET end_time = '2005-09-01 19:05:03' WHERE byte_count_id = 162438;
+
+select * from byte_counts WHERE host_id = 19 and byte_count_id > 160000 order by byte_count_id;
++---------------+---------+---------------------+---------------------+----------+----------+
+| byte_count_id | host_id | start_time          | end_time            | incoming | outgoing |
++---------------+---------+---------------------+---------------------+----------+----------+
+|        162290 |      19 | 2005-08-27 12:56:01 | 2005-08-27 12:57:02 |   294584 |    36982 |
+|        162306 |      19 | 2005-08-27 12:57:02 | 2005-08-27 12:58:01 |   114077 |    45442 |
+|        162323 |      19 | 2005-08-27 12:58:01 | 2005-08-27 12:59:02 |    49633 |    21765 |
+|        162340 |      19 | 2005-08-27 12:59:02 | 2005-08-27 13:00:02 |   120709 |     4774 |
+|        162356 |      19 | 2005-08-27 13:00:02 | 2005-08-27 13:01:02 |   219964 |     3880 |
+|        162372 |      19 | 2005-08-27 13:01:02 | 2005-08-27 13:02:01 |   312952 |     5400 |
+|        162388 |      19 | 2005-08-27 13:02:01 | 2005-08-27 13:03:01 |   348804 |    22677 |
+|        162405 |      19 | 2005-08-27 13:03:01 | 2005-08-27 13:04:02 |   317504 |    13500 |
+|        162422 |      19 | 2005-08-27 13:04:02 | 2005-08-27 13:05:02 |    86567 |     4341 |
+|        162438 |      19 | 2005-08-27 13:05:02 | 2005-09-01 19:05:03 |        0 |        0 |
+|        225940 |      19 | 2005-09-01 19:10:03 | 2005-09-01 19:16:04 |        0 |        0 |
+|        235124 |      19 | 2005-09-01 19:16:04 | NULL                |     NULL |     NULL |
++---------------+---------+---------------------+---------------------+----------+----------+
+
+DELETE FROM byte_counts WHERE byte_count_id = 225940;
+UPDATE byte_counts SET end_time = '2005-09-01 19:16:04' WHERE byte_count_id = 162438;
+
