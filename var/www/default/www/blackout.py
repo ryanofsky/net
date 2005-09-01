@@ -1,4 +1,19 @@
 page = """<html>
+<head>
+<script>
+<!-- 
+function preview(text)
+{
+  w = window.open("", "preview_blackout", "width=400,height=300,resizable=yes,scrollbars=yes,menubar=no,toolbar=no,status=yes")
+  d = w.document.open()
+  d.write(text)
+  d.close()
+  w.focus()
+}
+-->
+</script>
+</head>
+
 <body>
 
 [if-any done]
@@ -22,15 +37,18 @@ page = """<html>
 change the blackout message or lift the blackout.</p>
 [else]
 <p>Blackout is currently <strong>disabled</strong>. Use the form below to
-enable blackout and set a blackout message.</p>
+enable blackout with the specified blackout message.</p>
 [end]
 
 <table bgcolor="#dddddd" cellpadding=10><tr><td>
-<p>Blackout Message:</p>
 <form method=post>
-<textarea name=message rows=10 cols=80>[message]</textarea><br>
+<div>Message:</div>
+<div><textarea name=message rows=10 cols=80>[message]</textarea></div>
+<div>
 <input type=submit name=enable value="[if-any blackout]Update Message[else]Enable Blackout[end]">
+<input type=button value="Preview Message" onclick="preview(this.form.message.value)">
 [if-any blackout]<input type=submit name=lift value="Lift Blackout">[end]
+</div>
 </form>
 </td></tr></table>
 
