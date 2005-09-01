@@ -14,7 +14,8 @@ DEBUG = False
 def connect():
   db = MySQLdb.connect(user=config.MYSQL_USER,
                        passwd=config.MYSQL_PASSWORD,
-                       db=config.MYSQL_DATABASE)
+                       db=config.MYSQL_DATABASE,
+                       client_flag=_CLIENT_FOUND_ROWS)
   if DEBUG:
     db_query = db.query
     def query(s):
@@ -220,3 +221,18 @@ def _bool(val):
     else:
       return 0
   return val
+
+
+# From mysql_com.h, this client flag makes cursor.rowcount (which is set by
+# mysql_affected_rows() from the C API) reflect the number of rows matched by
+# an UPDATE statement instead of the number of rows physically changed by it.
+# This is more consistent with other DBI interfaces and allows the use of the
+# following idiom for updating existing rows instead of inserting duplicates
+#
+#   cursor.execute("UPDATE dict SET definition = %s WHERE word = %s")
+#   if not cursor.rowcount:
+#     cursor.execute("INSERT INTO dict (definition, word) VALUES (%s, %s))
+#
+# which, without the flag, would wrongly insert a duplicate row when the
+# values in an existing row didn't change.
+_CLIENT_FOUND_ROWS = 0x2
