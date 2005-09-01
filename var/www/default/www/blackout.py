@@ -28,7 +28,7 @@ enable blackout and set a blackout message.</p>
 <table bgcolor="#dddddd" cellpadding=10><tr><td>
 <p>Blackout Message:</p>
 <form method=post>
-<textarea name=message rows=20 cols=80>[message]</textarea><br>
+<textarea name=message rows=10 cols=80>[message]</textarea><br>
 <input type=submit name=enable value="[if-any blackout]Update Message[else]Enable Blackout[end]">
 [if-any blackout]<input type=submit name=lift value="Lift Blackout">[end]
 </form>
@@ -109,7 +109,8 @@ def authenticate(req):
     s = req.headers_in["Authorization"][6:]
     s = base64.decodestring(s)
     user, passwd = s.split(":", 1)
-    if user == config.ADMIN_USER and passwd == config.ADMIN_PASSWORD:
+    if (user.lower() == config.ADMIN_USER.lower()
+        and passwd.lower() == config.ADMIN_PASSWORD.lower()):
       return user
 
   req.err_headers_out["WWW-Authenticate"] = 'Basic realm = "%s"' % "kalam"
