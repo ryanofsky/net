@@ -1026,3 +1026,8 @@ SELECT * FROM byte_counts WHERE interval_id IN (25328,25329);
 |        247711 |      11 | 2005-09-02 13:59:05 | 2005-09-02 14:00:07 |       25329 |       40 |       40 |
 +---------------+---------+---------------------+---------------------+-------------+----------+----------+
 UPDATE byte_counts SET interval_id = 25328 WHERE interval_id IN (25329);
+
+delete from byte_counts where incoming is null and outgoing is null;
+alter table byte_counts drop column start_time;
+alter table byte_counts drop column end_time;
+
