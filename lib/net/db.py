@@ -54,7 +54,7 @@ def insert_host(cursor, mac, ip, name, email, registered, blocked):
                                     "registered, blocked) "
                  "VALUES (%s, %s, %s, %s, %s, %s)",
                  (mac, ip, name, email, _bool(registered), _bool(blocked)))
-  return cursor.insert_id()
+  return cursor.lastrowid
 
 def update_host(cursor, mac, ip, name, email, registered, blocked):
   """Update host record with specified values"""
@@ -153,51 +153,45 @@ def set_blackout(cursor, enabled=None, message=None):
 
   return False
 
-def add_count(cursor, host_id, incoming, outgoing):
-  time = time_str()
+def add_interval(cursor, time=None):
+  time = time_str(time)
+  cursor.execute("INSERT INTO byte_count_intervals (end_time) VALUES (%s)", time)
+  return cursor.lastrowid
 
+def add_count(cursor, host_id, interval_id, incoming, outgoing):
   if incoming == 0 and outgoing == 0:
     # optimized case, there's no reason to add subsequent rows with zero
     # counts, just update the end times
-
-    cursor.execute("SELECT start_time "
-                   "FROM byte_counts "
-                   "WHERE host_id = %s AND end_time IS NULL", host_id)
+    cursor.execute("SELECT byte_count_id, interval_id, incoming, outgoing "
+                   "FROM byte_counts WHERE host_id = %s "
+                   "ORDER BY interval_id DESC LIMIT 1", host_id)
 
     if cursor.rowcount:
       assert cursor.rowcount == 1
-      old_time, = cursor.fetchone()
+      count_id, row_interval_id, row_incoming, row_outgoing = cursor.fetchone()
 
-      cursor.execute("UPDATE byte_counts SET end_time = %s "
-                     "WHERE host_id = %s AND end_time = %s "
-                     "  AND incoming = 0 AND outgoing = 0",
-                     (time, host_id, old_time))
-
-      if cursor.rowcount:
-        assert cursor.rowcount == 1
-        cursor.execute("UPDATE byte_counts SET start_time = %s "
-                       "WHERE host_id = %s AND start_time = %s "
-                       "  AND end_time IS NULL",
-                       (time, host_id, old_time))
+      if row_incoming == 0 and row_outgoing == 0:
+        cursor.execute("UPDATE byte_counts SET interval_id = %s "
+                       "WHERE byte_count_id = %s",
+                       (interval_id, count_id))
         assert cursor.rowcount == 1
         return
 
   # normal case
-  cursor.execute("UPDATE byte_counts "
-                 "SET incoming = %s, outgoing = %s, end_time = %s "
-                 "WHERE host_id = %s AND end_time IS NULL",
-                 (incoming, outgoing, time, host_id))
+  cursor.execute("INSERT INTO byte_counts (host_id, interval_id, incoming, "
+                 "outgoing) VALUES (%s, %s, %s, %s)",
+                 (host_id, interval_id, incoming, outgoing))
 
-  if cursor.rowcount == 0:
-    cursor.execute("INSERT INTO byte_counts "
-                   "(host_id, start_time, end_time, incoming, outgoing) "
-                   "VALUES (%s, %s, %s, %s, %s)",
-                   (host_id, time, time, incoming, outgoing))
-
-  assert cursor.rowcount == 1
-  cursor.execute("INSERT INTO byte_counts (host_id, start_time) "
-                 "VALUES (%s, %s)", (host_id, time))
-
+class FakeCursor:
+  def __init__(self, connection):
+    self.connection = connection
+  def execute(self, sql, args=None):
+    if DEBUG:
+      if args is not None:
+        sql = sql % self.connection.literal(args)
+      print "(FAKE)", sql
+    self.rowcount = 1
+    self.lastrowid = -1
 
 def _bool(val):
   """Work around bug in MySQLdb escaping of bools

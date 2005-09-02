@@ -30,6 +30,7 @@ def merge_counts(cursor, incoming, outgoing):
 
 def add_counts(cursor):
   counts = iptables.open_counts(zero=True)
+  interval_id = db.add_interval(cursor)
   try:
     # dictionary of incoming byte counts indexed by ip
     incoming = {}
@@ -106,8 +107,8 @@ def add_counts(cursor):
                         % (addr.ip_str(ip), addr.mac_str(host.mac),
                            addr.mac_str(mac), in_bytes, out_bytes))
       continue
+    db.add_count(cursor, host.id, interval_id, in_bytes, out_bytes)
 
-    db.add_count(cursor, host.id, in_bytes, out_bytes)
 
 def usage():
   sys.stderr.write("""\

@@ -24,11 +24,19 @@ CREATE TABLE IF NOT EXISTS byte_counts
 (
   byte_count_id INT NOT NULL AUTO_INCREMENT,
   host_id INT NOT NULL REFERENCES hosts(host_id),
-  start_time DATETIME NOT NULL,
-  end_time DATETIME,
+  interval_id INT NOT NULL,
   incoming INT UNSIGNED,
   outgoing INT UNSIGNED,
   PRIMARY KEY (byte_count_id)
+  UNIQUE KEY (host_id, interval_id)
+);
+
+CREATE TABLE IF NOT EXISTS byte_count_intervals
+(
+  interval_id INT NOT NULL AUTO_INCREMENT,
+  end_time DATETIME NOT NULL,
+  PRIMARY KEY (interval_id),
+  UNIQUE KEY (end_time)
 );
 
 CREATE TABLE IF NOT EXISTS globals

@@ -116,11 +116,19 @@ def index(req, outgoing='', sort=''):
 
       period_idx = 0
       for period in periods:
+        cursor.execute("SELECT interval_id FROM byte_count_intervals "
+                       "WHERE end_time > %s ORDER by end_time LIMIT 1",
+                        db.time_str(now - period.duration))
+        row = cursor.fetchone()
+        if not row:
+          continue
+        interval_id, = row
+
         cursor.execute("SELECT host_id, SUM(%s) "
                        "FROM byte_counts "
-                       "WHERE end_time > %%s "
+                       "WHERE interval_id >= %%s "
                        "GROUP BY host_id" % (outgoing and "outgoing" or "incoming"), 
-                       db.time_str(now - period.duration))
+                       interval_id)
         while True:
           row = cursor.fetchone()
           if not row:
