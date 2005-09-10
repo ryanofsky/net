@@ -192,59 +192,56 @@ class Fiber(AsynchOp):
     self.generator = self._run(*arg, **kwargs)
     self._kick()
 
+  def run(self, *arg, **kwargs):
+    """To be implemented by subclasses as a generator method
+
+    The generator can yield operations or sequences of operations and it
+    will be automatically resumed when the operations complete. If it
+    yields a sequence of operations, it will be resumed when ANY ONE of the
+    operations completes. If it yields a sequence of subsequences of
+    operations, it will resume when ALL of the operations in ANY ONE of the
+    subsequences completes.
+
+    Examples:
+      # wait for read operation OR timeout to complete
+      yield (read, timeout)
+
+      # wait for read AND write operations, OR timeout operation
+      yield ((read, write), timeout)
+    
+      # wait for read AND write operations to complete
+      yield ((read, write),)
+
+    In this way, the resume mechanism is fully general and a fiber can
+    for any combination of operations to complete.
+    """
+    raise NotImplementedError
+
   def _run(self, *arg, **kwargs):
     """Wrapper around user-defined run() that cleans up afterwards"""
-    for w in self.run(*arg, **kwargs):
-      yield w
+    for op_sets in self.run(*arg, **kwargs):
+      if self._add_hooks(op_sets):
+        yield None
     # Explicitly set generator to None in case any of the hooks want to 
     # call done()
     self.generator = None
     self._call_hooks()
 
-  def run(self, *arg, **kwargs):
-    """To be implemented by subclasses as a generator method"""
-    raise NotImplementedError
-
-  def wait(self, *op_sets):
-    """Generator that doesn't return until operations have completed
-
-    A variable number of operations can be passed as arguments, causing wait
-    to return when ANY ONE of the operations has completed.
-
-    Lists of operations can also be passed as arguments, causing wait to return
-    when ALL the operations in ANY ONE of the lists have completed.
-
-    In this way, wait() is fully general and can be made to wait for any
-    combination of operations to complete.
-
-    Examples:
-      # wait for read operation OR timeout to complete
-      wait(read, timeout)
-
-      # wait for read AND write operations to complete
-      wait((read, write))
-
-      # wait for read AND write operations, OR timeout operation
-      wait((read, write), timeout)
-    """
-    wait_any = []
+  def _add_hooks(self, op_sets):
+    """Add hooks to resume Fiber when specified operations complete"""
     for op_set in isinstance(op_sets, AsynchOp) and (op_sets,) or op_sets:
       wait_all = []
       for op in isinstance(op_set, AsynchOp) and (op_set,) or op_set:
-        if op and not op.done():
+        if not op.done():
           wait_all.append(op)
-          def hook():
+          def hook(wait_all=wait_all, op=op):
             wait_all.remove(op)
             if not wait_all:
               self._kick()
           op.add_hook(hook)
-      wait_any.append(wait_all)
-
-    while wait_any:
-      for wait_all in wait_any:
-        if not wait_all:
-          return
-      yield None
+      if not wait_all:
+        return False
+    return True
 
   def done(self):
     return not self.generator
@@ -263,8 +260,7 @@ class SendAll(Fiber):
 
     while buffer:
       send = SendOp(reactor, sock, buffer)
-      for w in self.wait(send):
-        yield w
+      yield send
 
       if send.error is not None:
         self.error = send.error
@@ -282,19 +278,15 @@ TIMEOUT = 1.0
 class GetHttp(Fiber):
   def run(self, reactor, addr):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    conn = ConnectOp(reactor, sock, addr)
-    for w in self.wait(conn):
-      yield w
+    yield ConnectOp(reactor, sock, addr)
 
     send = SendOp(reactor, sock, 'GET / HTTP/1.0\r\n\r\n')
-    for w in self.wait(send):
-      yield w
+    yield send
     print "-%i %i" % (addr[1], send.bytes_sent)
 
     while True:
       recv = RecvOp(reactor, sock, 100)
-      for w in self.wait(recv):
-        yield w
+      yield recv
       if recv.error:
         print "RECV ERROR", read.error
       elif recv.recieved:
@@ -308,8 +300,7 @@ class Test(Fiber):
   def run(self, reactor):
     page1 = GetHttp(reactor, ('10.0.0.1', 8001))
     page2 = GetHttp(reactor, ('10.0.0.1', 8002))
-    for w in self.wait(page1, page2):
-      yield w
+    yield (page1, page2),
 
 def main():
   reactor = Reactor()
