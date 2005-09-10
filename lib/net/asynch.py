@@ -24,13 +24,6 @@ class AsynchOp:
     yields undefined results."""
     raise NotImplementedError
 
-  def kick(self):
-    """Wake this operation up to update it's state
-    
-    Only needed for operations that don't recieve notifications from a
-    reactor."""
-    pass
-
   def _notify(self):
     """Handle notification from reactor
 
@@ -154,27 +147,26 @@ class Reactor:
     sock.setblocking(False)
 
   def _register_readable(self, op, sock):
-    self._reads.append(sock)
     try:
       ops = self._readable_ops[sock]
     except KeyError:
       self._readable_ops[sock] = [op]
+      self._reads.append(sock)
     else:
       ops.append(op)
 
   def _register_writable(self, op, sock):
-    self._writes.append(sock)
     try:
       ops = self._writable_ops[sock]
     except KeyError:
       self._writable_ops[sock] = [op]
+      self._writes.append(sock)
     else:
       ops.append(op)
 
   def run(self, main_op):
-    while main_op.kick() or not main_op.done():
+    while not main_op.done():
       reads, writes, exceptions = select.select(self._reads, self._writes, [])
-
       for sock in reads:
         ops = self._readable_ops[sock]
         for op in ops:
@@ -198,6 +190,7 @@ class Reactor:
 class Fiber(AsynchOp):
   def start(self, *arg, **kwargs):
     self.generator = self._run(*arg, **kwargs)
+    self._kick()
 
   def _run(self, *arg, **kwargs):
     """Wrapper around user-defined run() that cleans up afterwards"""
@@ -235,18 +228,20 @@ class Fiber(AsynchOp):
       wait((read, write), timeout)
     """
     wait_any = []
-    for op_set in op_sets:
+    for op_set in isinstance(op_sets, AsynchOp) and (op_sets,) or op_sets:
       wait_all = []
-      for op in not is_sequence(op_set) and (op_set, ) or op_set:
+      for op in isinstance(op_set, AsynchOp) and (op_set,) or op_set:
         if op and not op.done():
           wait_all.append(op)
-          op.add_hook(lambda: wait_all.remove(op))
+          def hook():
+            wait_all.remove(op)
+            if not wait_all:
+              self._kick()
+          op.add_hook(hook)
       wait_any.append(wait_all)
 
     while wait_any:
       for wait_all in wait_any:
-        for op in wait_all:
-          op.kick()
         if not wait_all:
           return
       yield None
@@ -254,7 +249,7 @@ class Fiber(AsynchOp):
   def done(self):
     return not self.generator
 
-  def kick(self):
+  def _kick(self):
     try:
       self.generator.next()
     except StopIteration:
@@ -278,13 +273,6 @@ class SendAll(Fiber):
       self.bytes_sent += send.bytes_sent
       buffer = buffer[send.bytes_sent:]
 
-
-def is_sequence(seq):
-  try:
-    iter(seq)
-  except TypeError:
-    return False
-  return True
 
 ############
 
