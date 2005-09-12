@@ -30,6 +30,10 @@ class AsynchOp:
     Should return False to stop recieving notifications, True otherwise"""
     raise NotImplementedError
 
+  def cancel(self, reactor):
+    """Stop operation"""
+    raise NotImplementedError
+
   def set_hook(self, hook):
     """Set callback to invoke when asynchronous operation completes"""
     assert not self.done()
@@ -57,19 +61,19 @@ class ConnectOp(AsynchOp):
       self._call_hook()
     else:
       reactor._register_writable(self, sock)
+      self._sock = sock
 
   def done(self):
     return not self.error or self.error[0] != errno.EINPROGRESS
 
-
-  def _notify(self, sock):
+  def _notify(self):
     assert not self.done()
 
     ### The getsockopt call may not be portable, esp to older unixes
     ### see http://cr.yp.to/docs/connect.html and
     ### http://www.muq.org/~cynbe/ref/nonblocking-connects.html
     ### for workarounds
-    self.error = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+    self.error = self._sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
 
     if self.done():
       self._call_hook()
@@ -77,22 +81,26 @@ class ConnectOp(AsynchOp):
     else:
       return True
 
+  def cancel(self, reactor):
+    reactor._unregister_writable(self, self._sock)
+
 
 class RecvOp(AsynchOp):
   def start(self, reactor, sock, bytes):
     self.recieved = None
     self.error = None
     reactor._register_readable(self, sock)
+    self._sock = sock
     self._bytes = bytes
 
   def done(self):
     return self.recieved is not None or self.error is not None
 
-  def _notify(self, sock):
+  def _notify(self):
     assert not self.done()
 
     try:
-      self.recieved = sock.recv(self._bytes)
+      self.recieved = self._sock.recv(self._bytes)
     except socket.error, why:
       if why[0] == error.EWOULDBLOCK:
         return True
@@ -102,6 +110,9 @@ class RecvOp(AsynchOp):
     assert self.done()
     self._call_hook()
     return False
+
+  def cancel(self, reactor):
+    reactor._unregister_readable(self, self._sock)
 
 
 class SendOp(AsynchOp):
@@ -109,16 +120,17 @@ class SendOp(AsynchOp):
     self.bytes_sent = None
     self.error = None
     reactor._register_writable(self, sock)
+    self._sock = sock
     self._data = data
 
   def done(self):
     return self.bytes_sent is not None or self.error is not None
 
-  def _notify(self, sock):
+  def _notify(self):
     assert not self.done()
 
     try:
-      self.bytes_sent = sock.send(self._data)
+      self.bytes_sent = self._sock.send(self._data)
     except socket.error, why:
       if why[0] == error.EWOULDBLOCK:
         return True
@@ -128,6 +140,36 @@ class SendOp(AsynchOp):
     assert self.done()
     self._call_hook()
     return False
+
+  def cancel(self, reactor):
+    reactor._unregister_writable(self, self._sock)
+
+
+class Timeout(AsynchOp):
+  def start(self, reactor, rel_time=None, abs_time=None):
+    """Start timeout using either a relative timeout or an absolute time
+         rel_time - relative time specified in seconds, floating point
+         abs_time - absolute timestamp, seconds from unix epoch, floating point
+    """
+    assert ((rel_time is None and abs_time is not None)
+            or (rel_time is not None and abs_time is None))
+    self.abs_time = abs_time
+    self.rel_time = rel_time
+    self._done = False
+    reactor._register_timeout(self)
+
+  def done(self):
+    return self._done
+
+  def _notify(self):
+    self._done = True
+    self._call_hook()
+
+  def cancel(self, reactor):
+    reactor._unregister_timeout(self)
+
+  def __cmp__(self, other):
+    return cmp(self.abs_time, other.abs_time)
 
 
 class Reactor:
@@ -136,6 +178,9 @@ class Reactor:
     self._writes = []
     self._readable_ops = {}
     self._writable_ops = {}
+    ### sorted list for now, should be replaced by a priority queue
+    self._timeout_ops = []
+    self._now = None
 
   def prep_socket(self, sock):
     # Get socket ready for use with the reactor. The current reactor
@@ -156,6 +201,13 @@ class Reactor:
     else:
       ops.append(op)
 
+  def _unregister_readable(self, op, sock):
+    ops = self._readable_ops[sock]
+    ops.remove(op)
+    if not ops:
+      self._reads.remove(sock)
+      del self._readable_ops[sock]
+
   def _register_writable(self, op, sock):
     try:
       ops = self._writable_ops[sock]
@@ -165,13 +217,48 @@ class Reactor:
     else:
       ops.append(op)
 
+  def _unregister_writable(self, op, sock):
+    ops = self._writable_ops[sock]
+    ops.remove(op)
+    if not ops:
+      self._writes.remove(sock)
+      del self._writable_ops[sock]
+
+  def _register_timeout(self, op):
+    self._timeout_ops.append(op)
+
+  def _unregister_timeout(self, op):
+    self._timeout_ops.remove(op)
+
   def run(self, main_op):
     while not main_op.done():
-      reads, writes, exceptions = select.select(self._reads, self._writes, [])
+      now = time.time()
+
+      for timeout in self._timeout_ops:
+        if timeout.abs_time is None:
+          timeout.abs_time = timeout.rel_time + now
+      self._timeout_ops.sort()
+
+      if self._timeout_ops:
+        timeout = max(self._timeout_ops[0].abs_time - now, 0)
+      else:
+        timeout = None
+
+      reads, writes, exceptions = select.select(self._reads, self._writes,
+                                                [], timeout)
+
+      self._now = now = time.time()
+      for timeout in self._timeout_ops:
+        if timeout.abs_time <= now:
+          timeout._notify()
+          self._timeout_ops.remove(timeout)
+        else:
+          break
+
       for sock in reads:
         ops = self._readable_ops[sock]
         for op in ops:
-          if not op._notify(sock):
+          if not op._notify():
             ops.remove(op)
         if not ops:
           self._reads.remove(sock)
@@ -180,13 +267,14 @@ class Reactor:
       for sock in writes:
         ops = self._writable_ops[sock]
         for op in ops:
-          if not op._notify(sock):
+          if not op._notify():
             ops.remove(op)
         if not ops:
           self._writes.remove(sock)
           del self._writable_ops[sock]
 
       assert not exceptions
+
 
 class Fiber(AsynchOp):
   def start(self, *arg, **kwargs):
@@ -311,31 +399,56 @@ class SendAll(Fiber):
 TIMEOUT = 1.0
 
 class GetHttp(Fiber):
-  def run(self, reactor, addr):
+  def run(self, reactor, addr, send_req=True):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    yield ConnectOp(reactor, sock, addr)
 
-    send = SendOp(reactor, sock, 'GET / HTTP/1.0\r\n\r\n')
-    yield send
-    print "-%i %i" % (addr[1], send.bytes_sent)
+    connect = ConnectOp(reactor, sock, addr)
+    yield connect
+
+    if connect.error:
+      print "CONNECT ERROR"
+      return
+
+    if send_req:
+      send = SendOp(reactor, sock, 'GET / HTTP/1.0\r\n\r\n')
+      yield send
+
+      if send.error:
+        print "SEND ERROR"
+        return
+
+      print "-%i %i" % (addr[1], send.bytes_sent)
 
     while True:
       recv = RecvOp(reactor, sock, 100)
       yield recv
+
       if recv.error:
         print "RECV ERROR", read.error
+        return
       elif recv.recieved:
         print "+%i '%s'" % (addr[1], recv.recieved)
       else:
         print "=%i DONE" % addr[1]
-        break
+        return
+
     sock.close()
+
 
 class Test(Fiber):
   def run(self, reactor):
-    page1 = GetHttp(reactor, ('10.0.0.1', 8001))
-    page2 = GetHttp(reactor, ('10.0.0.1', 8002))
-    yield (page1, page2),
+    page1 = GetHttp(reactor, ('10.0.0.1', 8001), True)
+    page2 = GetHttp(reactor, ('10.0.0.1', 8002), False)
+    timeout = Timeout(reactor, 3)
+    yield (page1, page2), timeout
+
+    if not page1.done():
+      assert timeout.done()
+      print "PAGE1 TIMEOUT"
+    if not page2.done():
+      assert timeout.done()
+      print "PAGE2 TIMEOUT"
+
 
 def main():
   reactor = Reactor()
