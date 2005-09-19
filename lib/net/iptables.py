@@ -21,11 +21,11 @@ def del_blocked(cursor, mac):
   run(cursor, DELETE, 'nat', 'REDIRECT_BLOCKED', 'BLOCK', SOURCE, None, mac)
 
 def enable_blackout(cursor):
-  run(cursor, APPEND, 'nat', 'MAYBE_BLACKOUT', 'BLOCK', SOURCE, None, None)
+  run(cursor, APPEND, 'nat', 'MAYBE_BLACKOUT', 'BLACKOUT', SOURCE, None, None)
   run(cursor, APPEND, 'filter', 'MAYBE_BLACKOUT', 'DROP', SOURCE, None, None)
 
 def disable_blackout(cursor):
-  run(cursor, DELETE, 'nat', 'MAYBE_BLACKOUT', 'BLOCK', SOURCE, None, None)
+  run(cursor, DELETE, 'nat', 'MAYBE_BLACKOUT', 'BLACKOUT', SOURCE, None, None)
   run(cursor, DELETE, 'filter', 'MAYBE_BLACKOUT', 'DROP', SOURCE, None, None)
 
 APPEND = 'append'
