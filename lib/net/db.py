@@ -26,59 +26,67 @@ def connect():
 
 def lookup_host_with_mac(cursor, mac):
   if cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
-                      "registered, blocked "
+                    "registered, blocked, since "
                     "FROM hosts WHERE mac_addr = %s", mac):
     assert cursor.rowcount == 1
-    return cursor.fetchone()
+    return _host_row(cursor.fetchone())
   return None
 
 def lookup_host_with_ip(cursor, ip):
   if cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
-                      "registered, blocked "
+                    "registered, blocked, since "
                     "FROM hosts WHERE ip_addr = %s", ip):
     assert cursor.rowcount == 1
-    return cursor.fetchone()
+    return _host_row(cursor.fetchone())
   return None
 
 def lookup_host_with_id(cursor, id):
   if cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
-                      "registered, blocked "
+                    "registered, blocked, since "
                     "FROM hosts WHERE host_id = %s", id):
     assert cursor.rowcount == 1
-    return cursor.fetchone()
+    return _host_row(cursor.fetchone())
   return None
 
-def insert_host(cursor, mac, ip, name, email, registered, blocked):
+def _host_row(row):
+  """Convert mysql types to python types for functions returning host rows"""
+  id, mac, ip, name, email, registered, blocked, since = row
+  return (id, mac, ip, name, email, bool(registered),
+          bool(blocked), parse_time(since))
+
+def insert_host(cursor, mac, ip, name, email, registered, blocked, since):
   """Insert host record with specified values"""
   cursor.execute("INSERT INTO hosts (mac_addr, ip_addr, name, email, "
-                                    "registered, blocked) "
-                 "VALUES (%s, %s, %s, %s, %s, %s)",
-                 (mac, ip, name, email, _bool(registered), _bool(blocked)))
+                                    "registered, blocked, since) "
+                 "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                 (mac, ip, name, email, _bool(registered), _bool(blocked),
+                  time_str(since)))
   return cursor.lastrowid
 
-def update_host(cursor, mac, ip, name, email, registered, blocked):
+def update_host(cursor, mac, ip, name, email, registered, blocked, since):
   """Update host record with specified values"""
   if cursor.execute("UPDATE hosts SET ip_addr = %s, name = %s, email = %s, "
-                    "registered = %s, blocked = %s WHERE mac_addr = %s",
+                    "registered = %s, blocked = %s, since = %s "
+                    "WHERE mac_addr = %s",
                     (ip, name, email, _bool(registered), _bool(blocked),
-                     mac)):
+                     time_str(since), mac)):
     assert cursor.rowcount == 1
     return True
   return False
 
 def get_hosts(cursor):
   cursor.execute("SELECT host_id, mac_addr, ip_addr, name, email, "
-                 "registered, blocked FROM hosts")
+                 "registered, blocked, since FROM hosts")
   while True:
     row = cursor.fetchone()
     if row:
-      yield row
+      yield _host_row(row)
     else:
       break
 
-def log(cursor, message):
+def log(cursor, message, msgtime=None):
   cursor.execute("INSERT INTO log (time, message) VALUES (%s, %s)",
-                 (time_str(), message))
+                 (time_str(msgtime), message))
 
 def log_exception(cursor, message):
   fp = cStringIO.StringIO()

@@ -1,7 +1,8 @@
 import db, iptables, addr
+import time
 
 class Host:
-  def __init__(self, id, mac, ip, name, email, registered, blocked):
+  def __init__(self, id, mac, ip, name, email, registered, blocked, since):
     self.id = id
     self.mac = mac
     self.ip = ip
@@ -9,14 +10,16 @@ class Host:
     self.email = email
     self.registered = registered
     self.blocked = blocked
+    self.since = since
 
   def insert(self, cursor):
     """Insert new host into sql database and update iptables"""
+    now = time.time()
     db.log(cursor, "Adding host: mac = %s, ip = %s, "
                    "name = %s, email = %s, registered = %s, blocked = %s"
                    % (addr.mac_str(self.mac), addr.ip_str(self.ip),
                       db.log_str(self.name), db.log_str(self.email),
-                      self.registered, self.blocked))
+                      self.registered, self.blocked), now)
 
     # if there is another host with the same ip, zero it out
     other = lookup_ip(cursor, self.ip)
@@ -24,12 +27,16 @@ class Host:
       assert other.mac != self.mac
       other.update(cursor, ip=None)
 
+    if self.since is None:
+      self.since = now
+
     self.id = db.insert_host(cursor, self.mac, self.ip, self.name,
-                             self.email, self.registered, self.blocked)
+                             self.email, self.registered, self.blocked,
+                             self.since)
     self.iptables_add(cursor)
 
   def update(self, cursor, **fields):
-    """Change information about this host and update sql database and iptables"""
+    """Change information about this host, updating sql database and iptables"""
 
     # rote argument handling
     new_ip = self.ip
@@ -69,9 +76,11 @@ class Host:
     if fields:
       raise TypeError, "Unexpected keyword argument(s): " + ", ".join(fields.keys())
 
+    now = time.time()
     db.log(cursor, 'Updating host: id = %s, mac = %s'
                    % (self.id, addr.mac_str(self.mac))
-                   + (', %s %s => %s' * (len(log_args)/3)) % tuple(log_args))
+                   + (', %s %s => %s' * (len(log_args)/3)) % tuple(log_args),
+           now)
 
     # if there is another host with the new ip, zero it out
     other = new_ip and new_ip != self.ip and lookup_ip(cursor, new_ip)
@@ -91,6 +100,10 @@ class Host:
     if do_del:
       self.iptables_del(cursor)
 
+    # update registration time, if neccessary
+    if new_registered and not self.registered:
+      self.since = now
+
     # apply updates
     self.ip = new_ip
     self.name = new_name
@@ -99,7 +112,7 @@ class Host:
     self.blocked = new_blocked
 
     db.update_host(cursor, self.mac, self.ip, self.name, self.email,
-                   self.registered, self.blocked)
+                   self.registered, self.blocked, self.since)
 
     # add iptables entries, if neccessary
     if do_add:

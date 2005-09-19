@@ -135,7 +135,7 @@ def index(req, url=None, name=None, email=None, unregister=None):
             if host:
               host.update(cursor, name=name, email=email, registered=True, ip=ip)
             else:
-              host = hosts.Host(None, mac, ip, name, email, True, False)
+              host = hosts.Host(None, mac, ip, name, email, True, False, None)
               host.insert(cursor)
 
         elif host and host.ip != ip:

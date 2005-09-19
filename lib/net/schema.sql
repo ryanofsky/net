@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS hosts
   email VARCHAR(255),
   registered BOOL NOT NULL,
   blocked BOOL NOT NULL,
+  since DATETIME NOT NULL,
   PRIMARY KEY (host_id),
   UNIQUE KEY (mac_addr),
   UNIQUE KEY (ip_addr)
