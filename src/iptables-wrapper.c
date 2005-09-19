@@ -44,7 +44,9 @@ int valid_chains(char * table, char * chain, char * action)
       fprintf(stderr, "Error: invalid chain `%s' for nat table\n", chain);
       valid = 0;
     }
-    if (strcmp(action, "ACCEPT") != 0 && strcmp(action, "BLOCK") != 0)
+    if (strcmp(action, "ACCEPT") != 0 
+        && strcmp(action, "BLOCK") != 0
+        && strcmp(action, "BLACKOUT") != 0)
     {
       fprintf(stderr, "Error: invalid action `%s' for nat table\n", action);
       valid = 0;
