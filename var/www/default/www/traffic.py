@@ -20,7 +20,7 @@ page = """<html>
 <tbody>
 [for hosts]
   <tr>
-    <td>[hosts.name]</td>
+    <td>[hosts.name][if-any hosts.blocked] <b><i>[[]BLOCKED]</i></b>[end]</td>
     [for hosts.periods]
     <td align=right>[if-any hosts.periods][hosts.periods][else]&nbsp;[end]</td>
     [end]
@@ -43,8 +43,9 @@ class Period:
     self.sort_href = None
 
 class Host:
-  def __init__(self, name, periods):
+  def __init__(self, name, blocked, periods):
     self.name = name
+    self.blocked = ezt.boolean(blocked)
     self.periods = periods
     self.sortby = None
 
@@ -111,7 +112,7 @@ def index(req, outgoing='', sort=''):
       host_idx = {}
       for h in hosts.get_hosts(cursor):
         if h.registered:
-          host_idx[h.id] = host = Host(cgi.escape(h.name), [None] * len(periods))
+          host_idx[h.id] = host = Host(cgi.escape(h.name), h.blocked, [None] * len(periods))
           host_list.append(host)
 
       period_idx = 0
