@@ -68,8 +68,16 @@ start() {
     -j REDIRECT --to-ports 5300
   iptables -t nat -A BLOCK -j ACCEPT_LOCAL
   iptables -t nat -A BLOCK -p tcp --destination-port 80 \
-    -j REDIRECT --to-ports 8002
+    -j REDIRECT --to-ports 8003
   iptables -t nat -A BLOCK -j DROP
+
+  iptables -t nat -N BLACKOUT
+  iptables -t nat -A BLACKOUT -p udp --destination-port 53 \
+    -j REDIRECT --to-ports 5300
+  iptables -t nat -A BLACKOUT -j ACCEPT_LOCAL
+  iptables -t nat -A BLACKOUT -p tcp --destination-port 80 \
+    -j REDIRECT --to-ports 8002
+  iptables -t nat -A BLACKOUT -j DROP
 
   iptables -t nat -N REGISTER
   iptables -t nat -A REGISTER -i eth0 -p udp --destination-port 53 \
