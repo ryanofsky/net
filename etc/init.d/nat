@@ -12,6 +12,7 @@ stop() {
 
   # remove filters
   iptables -t filter -F FORWARD
+  iptables -t filter -F INPUT
   iptables -t filter -F MAYBE_BLACKOUT
   iptables -t filter -X MAYBE_BLACKOUT
   iptables -t filter -F ACCEPT_REGISTERED_SRC
@@ -31,6 +32,8 @@ stop() {
   iptables -t nat -X REDIRECT_BLOCKED
   iptables -t nat -F BLOCK
   iptables -t nat -X BLOCK
+  iptables -t nat -F BLACKOUT
+  iptables -t nat -X BLACKOUT
   iptables -t nat -F REGISTER
   iptables -t nat -X REGISTER
   iptables -t nat -F ACCEPT_LOCAL
@@ -89,7 +92,6 @@ start() {
   iptables -t nat -A REGISTER -j ACCEPT_LOCAL
   iptables -t nat -A REGISTER -i eth0 -p tcp --destination-port 80 \
     -j REDIRECT --to-ports 8001
-  iptables -t nat -A BLOCK -j DROP
 
   iptables -t nat -N REDIRECT_BLOCKED
   iptables -t nat -N ACCEPT_REGISTERED
