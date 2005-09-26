@@ -73,7 +73,8 @@ class ConnectOp(AsynchOp):
     ### see http://cr.yp.to/docs/connect.html and
     ### http://www.muq.org/~cynbe/ref/nonblocking-connects.html
     ### for workarounds
-    self.error = self._sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+    error = self._sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+    self.error = error and socket.error(error) or None
 
     if self.done():
       self._call_hook()
@@ -305,7 +306,9 @@ class Fiber(AsynchOp):
       yield ((read, write),)
 
     In this way, the resume mechanism is fully general and a fiber can
-    for any combination of operations to complete."""
+    for any combination of operations to complete.
+
+    None values in both the inner and outer sequences are ignored."""
     raise NotImplementedError
 
   def _run(self, *arg, **kwargs):
@@ -323,14 +326,20 @@ class Fiber(AsynchOp):
       wait_any = []
 
       for op_set in op_sets:
+        if op_set is None:
+          continue
+
         # if yielded sequence element is not a subsequence, make it one
-        if isinstance(op_set, AsynchOp) or op_set is None:
+        if isinstance(op_set, AsynchOp):
           op_set = op_set,
 
         # sublist of operations. if empty, fiber resumes
         wait_all = []
 
         for op in op_set:
+          if op is None:
+            continue
+
           if not op.done():
             # hook function called when op completes
             def hook(wait_any=wait_any, wait_all=wait_all, op=op, fiber=self):
