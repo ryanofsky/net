@@ -5,15 +5,15 @@ page = """<html>
 <table border=1>
   <tr>
     <td><strong>Internet Gateway</strong></td>
-    <td>[if-any gate]<font color=green>Up</font>[else]<font color=red>Down</font> (Blackout)[end]</td>
+    <td>[if-any gate][is gate "1"]<font color=green>Up</font>[else]<font color=red>Down</font> (Blackout)[end][else]&nbsp;[end]</td>
   </tr>
   <tr>
     <td><strong>Satellite Modem</strong></td>
-    <td>[if-any modem]<font color=green>Up</font>[else]<font color=red>Down</font>[end]</td>
+    <td>[if-any modem][is modem "1"]<font color=green>Up</font>[else]<font color=red>Down</font>[end][else]&nbsp;[end]</td>
   </tr>
  <tr>
     <td><strong>Satellite Link</strong></td>
-    <td>[if-any link]<font color=green>Up</font>[else]<font color=red>Down</font>[end]</td>
+    <td>[if-any link][is link "1"]<font color=green>Up</font>[else]<font color=red>Down</font>[end][else]&nbsp;[end]</td>
   </tr>
 </table>
 <p><a href="/">Back to Main Page<a></p>
@@ -77,14 +77,28 @@ def connect_sat():
   reactor = asynch.Reactor()
   test_sat = TestSatOp(reactor)
   reactor.run(test_sat)
-  return test_sat.off_up or test_sat.on_up, test_sat.on_up
+  if test_sat.on_up:
+    return True, True
+  elif test_sat.off_up:
+    return True, False
+  else:
+    return False, None
+
+def ezt_tribool(val):
+  if val is None:
+    return None
+  elif val is True:
+    return "1"
+  elif val is False:
+    return "0"
+  assert False
 
 def index(req, outgoing='', sort=''):
   conn = db.connect()
   try:
     cursor = conn.cursor()
     try:
-      gate = ezt.boolean(not db.blackout_enabled(cursor))
+      gate = not db.blackout_enabled(cursor)
     finally:
       cursor.close()
   finally:
@@ -93,9 +107,9 @@ def index(req, outgoing='', sort=''):
   modem, link = connect_sat()
   vars = {
     'date': time.strftime('%a %b %d %H:%M:%S %Z %Y'),
-    'gate': gate,
-    'modem': ezt.boolean(modem),
-    'link': ezt.boolean(link),
+    'gate': ezt_tribool(gate),
+    'modem': ezt_tribool(modem),
+    'link': ezt_tribool(link),
   }
 
   out = cStringIO.StringIO()
