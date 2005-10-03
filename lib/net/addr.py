@@ -3,8 +3,8 @@ import os
 import string
 import binascii
 
-_re_mac = re.compile(r'([%s]{2}):([%s]{2}):([%s]{2}):'
-                     r'([%s]{2}):([%s]{2}):([%s]{2})$'
+_re_mac = re.compile(r'([%s]{1,2}):([%s]{1,2}):([%s]{1,2}):'
+                     r'([%s]{1,2}):([%s]{1,2}):([%s]{1,2})$'
                      % ((string.hexdigits,) * 6))
 
 def parse_mac(mac):
@@ -14,6 +14,8 @@ def parse_mac(mac):
 
   ret = 0L
   for byte in m.groups():
+    if len(byte) == 1:
+      byte = "0" + byte
     val = ord(binascii.unhexlify(byte))
     ret <<= 8
     ret |= val
