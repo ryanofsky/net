@@ -59,10 +59,10 @@ start() {
   iptables -t filter -A FORWARD -i eth1 -o eth0 -j DROP
 
   # simple firewall just to block outside access to local servers, except ssh
-  iptables -t filter -N FIREWALL
-  iptables -t filter -A FIREWALL -p tcp --dport 22 -j ACCEPT
-  iptables -t filter -A FIREWALL -m state --state NEW -j DROP
-  iptables -t filter -A INPUT -i eth1 -j FIREWALL
+  #leave#iptables -t filter -N FIREWALL
+  #leave#iptables -t filter -A FIREWALL -p tcp --dport 22 -j ACCEPT
+  #leave#iptables -t filter -A FIREWALL -m state --state NEW -j DROP
+  #leave#iptables -t filter -A INPUT -i eth1 -j FIREWALL
 
   # registration and block page redirects
 

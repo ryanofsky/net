@@ -1,0 +1,22 @@
+modules=( "iproute2" )
+config_eth0=( "10.0.0.1/8" )
+config_eth1=(
+  "192.168.10.110/24" #leave# 
+
+  # 17 is the modem, 20 is ssg benjamin
+  #leave# "203.110.192.16/29"
+  #leave# "203.110.192.18/29"
+  #leave# "203.110.192.19/29"
+  #leave# "203.110.192.21/29"
+  #leave# "203.110.192.22/29"
+  #leave# "203.110.192.23/29"
+
+  # 166 is the modem, when offline
+  #leave# "10.1.23.167/31"
+)
+
+routes_eth1=(
+  "10.1.23.166/31 via 192.168.0.1" #leave#
+  "default via 192.168.10.1" #leave#
+  #leave# "default via 203.110.192.17"
+)
